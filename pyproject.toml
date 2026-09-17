@@ -1,0 +1,32 @@
+[project]
+name = "aside-jev"
+version = "0.1.0"
+description = "Bounded TypeSafe Jev decisions for Aside browser agents — pick one app-owned action ID, never invent clicks."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Appcaster" }]
+keywords = ["aside", "typesafe", "jev", "mcp", "browser-agent", "computer-use"]
+dependencies = [
+  "mcp>=1.0,<2",
+  "httpx>=0.27",
+  "typesafe-sdk>=0.6.0",
+  "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+aside-jev = "aside_jev.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aside_jev"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

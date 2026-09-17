@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Aside Jev fixture</title>
+<h1>Aside × Jev fixture</h1>
+<form id="f" onsubmit="event.preventDefault(); window.__submitted = document.getElementById('verification').value; document.getElementById('out').textContent = window.__submitted;">
+  <label>verification value <input id="verification" name="verification" /></label>
+  <button type="submit">Submit</button>
+</form>
+<pre id="out"></pre>

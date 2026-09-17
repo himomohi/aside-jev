@@ -1,0 +1,20 @@
+[
+  {
+    "id": "type-verification-value",
+    "description": "Replace the verification field with the required token.",
+    "tool": "aside_type",
+    "arguments": { "selector": "#verification", "text": "{{token}}", "replace": true }
+  },
+  {
+    "id": "submit-form",
+    "description": "Submit the form after the verification field is filled.",
+    "tool": "aside_click",
+    "arguments": { "selector": "button[type=submit]" }
+  },
+  {
+    "id": "abstain",
+    "description": "Stop without acting if evidence is incomplete or ambiguous.",
+    "tool": null,
+    "arguments": {}
+  }
+]
