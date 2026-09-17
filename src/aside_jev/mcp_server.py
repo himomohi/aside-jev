@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .core import Candidate, build_abstain, validate_choice
-from .loop import decide
 from .aside_bridge import summarize_observation
+from .core import Candidate, build_abstain, validate_choice
+from .jev import system_one
+from .loop import decide
 
 mcp = FastMCP(
     "aside-jev",
     instructions=(
-        "Bounded TypeSafe Jev chooser for Aside. "
-        "The application owns the candidate table; Jev only returns one supplied id. "
-        "Never invent tool names, selectors, or arguments."
+        "TypeSafe Jev (System One) for Aside agents. "
+        "Jev is a decision-only model: Choice / Score / Noul — no text generation. "
+        "Use jev_system_one for general decisions; use jev_choose/jev_step when the "
+        "app owns a candidate action table and Aside will execute the chosen id. "
+        "Never invent tools, selectors, or arguments outside the supplied table."
     ),
 )
 
@@ -36,16 +38,34 @@ def _parse_candidates(raw: list[dict[str, Any]]) -> list[Candidate]:
 
 
 @mcp.tool()
+def jev_system_one(
+    state: dict[str, Any] | str | list[Any],
+    questions: dict[str, Any],
+    model: str | None = "jev-latest",
+) -> dict[str, Any]:
+    """Call TypeSafe Jev System One (Choice / Score / Noul) on shared state.
+
+    questions example:
+      {
+        "next": {"type":"choice","instructions":"Next step","criteria":{"a":"...","b":"..."}},
+        "done": {"type":"noul","instructions":"The task is complete"},
+        "risk": {"type":"score","instructions":"How risky","criteria":["low","medium","high"]}
+      }
+    """
+    return system_one(state, questions, model=model)
+
+
+@mcp.tool()
 def jev_choose(
     goal: str,
     observation: dict[str, Any] | str,
     candidates: list[dict[str, Any]],
     provider: str = "live",
     history: list[dict[str, Any]] | None = None,
-    model: str | None = None,
+    model: str | None = "jev-latest",
     prefer: str | None = None,
 ) -> dict[str, Any]:
-    """Pick exactly one application-owned candidate id via mock or live TypeSafe Jev."""
+    """Jev Choice over an app-owned candidate table (for Aside to execute)."""
     parsed = _parse_candidates(candidates)
     obs = summarize_observation(observation)
     prov = "mock" if provider == "mock" else "live"
@@ -64,6 +84,7 @@ def jev_choose(
         "probabilities": probs,
         "candidate": candidate.to_dict(),
         "provider": prov,
+        "model": None if prov == "mock" else (model or "jev-latest"),
     }
 
 
@@ -85,10 +106,10 @@ def jev_step(
     candidates: list[dict[str, Any]],
     provider: str = "live",
     history: list[dict[str, Any]] | None = None,
-    model: str | None = None,
+    model: str | None = "jev-latest",
     min_confidence: float = 0.0,
 ) -> dict[str, Any]:
-    """One bounded decision step: choose + validate, ready for Aside execution."""
+    """One Jev decision step for Aside: choose + validate + execute payload."""
     result = jev_choose(
         goal=goal,
         observation=observation,
@@ -106,6 +127,7 @@ def jev_step(
             "probabilities": result["probabilities"],
             "candidate": abstain.to_dict(),
             "provider": result["provider"],
+            "model": result.get("model"),
             "downgraded_to_abstain": True,
             "reason": f"confidence {result['confidence']} < min_confidence {min_confidence}",
         }
