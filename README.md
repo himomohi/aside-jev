@@ -1,6 +1,6 @@
 # aside-jev
 
-**Bounded decisions for [Aside](https://github.com) browser agents.**
+**Bounded decisions for Aside browser agents.**
 
 Your app owns the action table. [TypeSafe Jev](https://typesafe.ai) picks **one ID**. Aside executes it. You verify with an independent check — not the model’s prose.
 
