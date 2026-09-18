@@ -1,42 +1,36 @@
 ---
 name: aside-jev
-description: Use when an Aside agent should decide with TypeSafe Jev (System One) — Choice/Score/Noul or bounded action IDs — instead of free-form LLM clicks. Prefer over inventing selectors.
+description: REQUIRED for Aside browse / computer-use. Decide every browser step with TypeSafe Jev (Choice/Score/Noul or action IDs); Aside only executes. Never invent selectors.
 ---
 
-# aside-jev
+# aside-jev (Aside browse → Jev)
 
-**Jev is the decision model. Aside is the browser runtime.**
+**Jev decides. Aside browses.**
 
-Jev (TypeSafe System One) returns typed answers only: `Choice`, `Score`, `Noul`. It does not generate text or invent tool calls. Aside observes and executes.
+Aside’s chat model must not free-form invent the next click. On every browse / Ultrabrowse / computer-use step:
 
-## When to use
+1. Observe with Aside.
+2. Build a full candidate table (tool + args) yourself; always include `abstain`.
+3. Call Jev via the absolute CLI from AGENTS.md (`aside-jev choose` or `aside-jev system-one`).
+4. Execute only the returned id with Aside.
+5. Verify independently (DOM/API).
 
-- Pick next macro-step / tool / candidate id with calibrated confidence
-- Gate risky clicks (`Score` / `Noul` thresholds in *your* code)
-- Keep selectors and tool args **app-owned**, never model-invented
-
-## Install / MCP
+## CLI
 
 ```bash
-uv tool install "aside-jev @ git+https://github.com/himomohi/aside-jev"
-export TYPESAFE_API_KEY=…
-aside-jev serve
+# absolute path is written into ~/.aside/u/0/AGENTS.md by install.sh
+aside-jev choose --goal '…' --candidates cands.json --observation obs.json --provider live
+aside-jev system-one --state state.json --questions questions.json
+aside-jev serve   # MCP for Cursor / external agents
 ```
 
-Register `aside-jev` **beside** `aside` in MCP config. Live needs `TYPESAFE_API_KEY` (or `TYPESAFEAI_API_KEY`). Mock needs none.
+Live needs `TYPESAFE_API_KEY` (or `~/.config/typesafe/api.env`). Mock needs none.
 
-## Loop
+## MCP tools
 
-1. Observe with Aside (`aside mcp` / REPL).
-2. Either:
-   - call `jev_system_one` with Choice/Score/Noul on the observation state, or
-   - build a candidate action table (always include `abstain`) and call `jev_step` / `jev_choose`.
-3. Fail closed on unknown ids (`jev_validate`).
-4. Execute at most one Aside action from the original table.
-5. Verify an independent postcondition (DOM / API), not model text.
+`jev_system_one` · `jev_choose` · `jev_validate` · `jev_step`
 
 ## Do not
 
-- Treat this as a Cua / computer-use driver
-- Let Jev invent selectors, URLs, or tool names
-- Skip confidence thresholds on destructive actions
+- Skip Jev and invent CSS/xpath/coordinates for the next action
+- Treat this as a Cua driver — runtime is Aside; model is Jev

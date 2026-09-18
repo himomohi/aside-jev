@@ -7,6 +7,7 @@ from typing import Any
 
 from . import __version__
 from .core import Candidate, build_abstain
+from .jev import system_one
 from .loop import decide
 
 
@@ -46,11 +47,20 @@ def cmd_choose(args: argparse.Namespace) -> int:
                 "confidence": confidence,
                 "probabilities": probs,
                 "candidate": candidate.to_dict(),
+                "provider": args.provider,
             },
             indent=2,
             ensure_ascii=False,
         )
     )
+    return 0
+
+
+def cmd_system_one(args: argparse.Namespace) -> int:
+    state = _load_json(args.state)
+    questions = _load_json(args.questions)
+    out = system_one(state, questions, model=args.model)
+    print(json.dumps(out, indent=2, ensure_ascii=False))
     return 0
 
 
@@ -64,7 +74,7 @@ def cmd_serve(_args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="aside-jev",
-        description="Bounded TypeSafe Jev decisions for Aside agents",
+        description="TypeSafe Jev (System One) decisions for Aside browse agents",
     )
     parser.add_argument("--version", action="version", version=f"aside-jev {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -72,14 +82,20 @@ def main(argv: list[str] | None = None) -> None:
     p_serve = sub.add_parser("serve", help="Run the aside-jev MCP server on stdio")
     p_serve.set_defaults(func=cmd_serve)
 
-    p_choose = sub.add_parser("choose", help="Choose one candidate id (mock or live)")
+    p_choose = sub.add_parser("choose", help="Jev Choice over an app-owned candidate table")
     p_choose.add_argument("--goal", required=True)
     p_choose.add_argument("--candidates", required=True, help="JSON array of candidates")
     p_choose.add_argument("--observation", help="JSON observation file")
     p_choose.add_argument("--provider", choices=["mock", "live"], default="mock")
-    p_choose.add_argument("--model", default=None)
+    p_choose.add_argument("--model", default="jev-latest")
     p_choose.add_argument("--prefer", default=None, help="mock-only preferred id")
     p_choose.set_defaults(func=cmd_choose)
+
+    p_so = sub.add_parser("system-one", help="General Jev System One (Choice/Score/Noul)")
+    p_so.add_argument("--state", required=True, help="JSON state file")
+    p_so.add_argument("--questions", required=True, help="JSON questions file")
+    p_so.add_argument("--model", default="jev-latest")
+    p_so.set_defaults(func=cmd_system_one)
 
     args = parser.parse_args(argv)
     raise SystemExit(args.func(args))
