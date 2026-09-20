@@ -179,7 +179,7 @@ def verify(args: argparse.Namespace, report: dict[str, Any]) -> None:
                 require(python.is_file(), "bootstrap_python_missing")
             else:
                 python = Path(sys.executable)
-                run([str(python), "-I", "-m", "aside_jev.cli", "setup", *setup_args], environment=environment, cwd=base)
+                run([str(python), "-I", "-X", "utf8", "-m", "aside_jev.cli", "setup", *setup_args], environment=environment, cwd=base)
             report["checks"]["bootstrap"] = args.bootstrap
             version = run([str(python), "-I", "-c", "import json,sys; print(json.dumps(list(sys.version_info[:3])))"],
                           environment=environment, cwd=base)
@@ -199,9 +199,10 @@ def verify(args: argparse.Namespace, report: dict[str, Any]) -> None:
             report["checks"].update(settings_preserved=True, extension_assets=len(expected_assets), stable_extension_id=EXTENSION_ID, default_off=True)
             report["stage"] = "idempotent_setup"
             original_settings = settings_path.read_bytes()
-            run([str(python), "-I", "-m", "aside_jev.cli", "setup", *setup_args], environment=environment, cwd=base)
+            localized_setup = run([str(python), "-I", "-X", "utf8", "-m", "aside_jev.cli", "setup", "--lang", "ko", *setup_args], environment=environment, cwd=base)
+            require("연결 파일을 설치했습니다" in localized_setup.stdout.decode("utf-8"), "korean_setup_output_missing")
             require(settings_path.read_bytes() == original_settings, "repeat_changed_settings")
-            report["checks"]["idempotent_setup"] = True
+            report["checks"].update(idempotent_setup=True, korean_setup_output=True)
             report["stage"] = "native_status"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             require(manifest["allowed_origins"] == [f"chrome-extension://{EXTENSION_ID}/"], "native_origin_scope")

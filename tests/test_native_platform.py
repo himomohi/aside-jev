@@ -189,7 +189,7 @@ def test_windows_setup_preview_and_apply_use_explicit_registry_and_python_mcp(tm
     assert fake_windows.data[(32, KEY)][""][0] == str(root / "hosts" / f"{control.HOST_NAME}.json")
     entry = control.get_status()["aside_mcp_entry"]
     assert entry == {"enabled": True, "transport": "stdio", "command": sys.executable,
-                     "args": ["-I", str(root / "mcp-entry.py")], "env": {}}
+                     "args": ["-I", "-X", "utf8", str(root / "mcp-entry.py")], "env": {}}
     before = sorted((root / "backups").iterdir())
     control.setup_installation(**args, apply=True)
     assert sorted((root / "backups").iterdir()) == before
@@ -205,7 +205,7 @@ def test_generated_windows_python_entry_preserves_framing_and_origin(tmp_path, m
     source = io.BytesIO()
     native_host.write_message(source, {"op": "status"})
     environment = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path))
-    result = subprocess.run([sys.executable, "-I", str(root / "native-entry.py"), ORIGIN, "--parent-window=42"],
+    result = subprocess.run([sys.executable, "-I", "-X", "utf8", str(root / "native-entry.py"), ORIGIN, "--parent-window=42"],
                             input=source.getvalue(), capture_output=True, env=environment, timeout=15, check=True)
     response = native_host.read_message(io.BytesIO(result.stdout))
     assert response["ok"] and response["status"]["enabled"] is False
@@ -278,7 +278,7 @@ def test_preview_returns_canonical_mcp_entry_and_extra_targets_without_writing(t
                                       windows_registry_key=KEY, root=root,
                                       extra_updates=[(extra, b"{}", 0o600)], expected_files={extra: None})
     assert str(extra) in plan["files"]
-    assert plan["aside_mcp_entry"]["args"] == ["-I", str(root / "mcp-entry.py")]
+    assert plan["aside_mcp_entry"]["args"] == ["-I", "-X", "utf8", str(root / "mcp-entry.py")]
     assert not extra.exists() and not root.exists()
 
 
@@ -328,7 +328,7 @@ def test_windows_paths_and_launcher_preserve_unicode_and_literal_metacharacters(
     native_platform.validate_windows_path(python)
     content = native_platform.windows_launcher(python, native=True).decode("utf-8")
     assert "setlocal DisableDelayedExpansion\r\n" in content
-    assert '"C:\\사용자 & 개발\\%%PATH%% ! ^ (test)\\python.exe" -I "%~dp0native-entry.py" "%~1"' in content
+    assert '"C:\\사용자 & 개발\\%%PATH%% ! ^ (test)\\python.exe" -I -X utf8 "%~dp0native-entry.py" "%~1"' in content
     assert "%*" not in content and "powershell" not in content and "-EncodedCommand" not in content
     for helper in (native_platform.windows_entry(native=True), native_platform.windows_entry(native=False), native_platform.windows_status_entry()):
         compile(helper, "generated_helper", "exec")
@@ -351,7 +351,7 @@ def test_reparse_attribute_is_rejected_independently_of_symlink_mode(tmp_path, m
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows Win32 파일 핸들과 cmd.exe의 실제 실행은 Windows에서 검증")
 def test_real_windows_safe_files_lock_and_framed_wrapper(tmp_path, monkeypatch, fake_windows):
-    profile = tmp_path / "profile"
+    profile = tmp_path / "한글 계정"
     profile.mkdir()
     root = tmp_path / "유니코드 ! & ^ (test)"
     monkeypatch.setenv("ASIDE_JEV_CONFIG_DIR", str(root))
@@ -368,6 +368,11 @@ def test_real_windows_safe_files_lock_and_framed_wrapper(tmp_path, monkeypatch, 
     # 임시 fixture 호스트의 실패 원인을 다음 Windows CI에서도 확인할 수 있게 한다.
     assert result.returncode == 0, result.stderr.decode("utf-8", errors="replace")[-2000:]
     assert native_host.read_message(io.BytesIO(result.stdout))["status"]["enabled"] is False
+    # cmd의 콘솔 코드 페이지와 별개로, 캡처된 Python 텍스트 출력도 UTF-8이어야 한다.
+    status = subprocess.run([str(root / "status-host.cmd")], stdin=subprocess.DEVNULL,
+                            capture_output=True, timeout=15, check=False)
+    assert status.returncode == 0, status.stderr.decode("utf-8", errors="replace")[-2000:]
+    assert json.loads(status.stdout.decode("utf-8"))["profile_label"] == profile.name
     outside = tmp_path / "outside"
     outside.write_text("untouched")
     os.link(outside, profile / "AGENTS.md")

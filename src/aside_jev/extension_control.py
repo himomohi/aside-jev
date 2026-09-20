@@ -398,7 +398,7 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
 def _mcp_entry(config: dict[str, Any]) -> dict[str, Any]:
     if config.get("platform") == "windows":
         command = config["python_executable"]
-        args = ["-I", str(Path(config["mcp_wrapper"]).parent / "mcp-entry.py")]
+        args = ["-I", "-X", "utf8", str(Path(config["mcp_wrapper"]).parent / "mcp-entry.py")]
     else:
         command, args = config["mcp_wrapper"], []
     return {"enabled": True, "transport": "stdio", "command": command, "args": args, "env": {}}

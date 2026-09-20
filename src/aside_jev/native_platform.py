@@ -200,9 +200,10 @@ def validate_windows_launcher_path(path: str | Path) -> None:
 def windows_launcher(python: str, *, native: bool) -> bytes:
     entry = "native-entry.py" if native else "mcp-entry.py"
     argument = ' "%~1"' if native else ""
+    # -I가 PYTHONUTF8 환경 변수를 무시하므로 파이프 출력도 UTF-8로 명시한다.
     script = ("@echo off\r\nsetlocal DisableDelayedExpansion\r\n"
               "chcp 65001 >nul\r\n"
-              f'{cmd_quote_literal(python)} -I "%~dp0{entry}"{argument}\r\n'
+              f'{cmd_quote_literal(python)} -I -X utf8 "%~dp0{entry}"{argument}\r\n'
               "exit /b %errorlevel%\r\n")
     return script.encode("utf-8")
 

@@ -26,7 +26,7 @@ if errorlevel 1 goto failed
 if errorlevel 1 goto failed
 "%ASIDE_JEV_UV%" pip install --python "%ASIDE_JEV_PYTHON%" --no-deps --reinstall-package aside-jev "%ASIDE_JEV_SOURCE%."
 if errorlevel 1 goto failed
-"%ASIDE_JEV_PYTHON%" -I -m aside_jev.cli setup %*
+"%ASIDE_JEV_PYTHON%" -I -X utf8 -m aside_jev.cli setup %*
 if errorlevel 1 goto failed
 pause
 exit /b 0

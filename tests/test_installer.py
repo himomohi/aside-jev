@@ -66,7 +66,7 @@ def test_install_and_repeat_preserve_other_mcp_and_settings(installation):
     assert settings['mcp']['inventories'] == {'keep': True}
     entry = settings['mcp']['servers']['aside-jev']
     assert entry['enabled'] and entry['transport'] == 'stdio'
-    entry_path = entry['args'][1] if sys.platform == 'win32' else entry['command']
+    entry_path = entry['args'][-1] if sys.platform == 'win32' else entry['command']
     assert Path(entry_path).parent == Path(args.config_dir)
     assert (Path(args.config_dir) / 'extension' / 'manifest.json').exists()
     assert control.get_status()['enabled'] is False
