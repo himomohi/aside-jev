@@ -110,27 +110,36 @@ One Aside MCP/REPL session stays open throughout a task. Refresh observations an
 
 <a id="quick-start"></a>
 
-## Quick start
+## Install in a few steps
 
-Requires **Python 3.11+ · uv · Aside CLI**. Run from this checkout:
+**Windows and macOS · no Git, Python, or uv setup required.** Install and sign in to [Aside](https://aside.com/download) first.
+
+1. **[Download ZIP](https://github.com/himomohi/aside-jev/archive/refs/heads/main.zip)** and extract it.
+2. Run **`Install.cmd` on Windows** or **`Install.command` on macOS**. Choose your Aside account and enter your Jev key when prompted. Review the changes and confirm.
+3. Reopen Aside → Extensions → Developer mode → **Load unpacked**, select the folder printed by setup, pin **Aside Jev**, and turn **ON**. Start a new task.
+
+The installer prepares a private Python environment, copies the extension to a stable folder, and adds the Jev MCP connection while preserving your other settings. The extension ID is fixed across computers. **Quit Aside before confirming setup** so it cannot overwrite the account settings during installation.
+
+> Windows Native Messaging needs the registration key used by your Aside build. Setup proposes an existing Aside `NativeMessagingHosts` location when found; otherwise it asks for a verified key. We have not verified that final browser connection on a Windows PC. [Windows details and troubleshooting →](docs/EXTENSION.md#windows)
+
+If macOS does not open the downloaded `.command`, run `bash scripts/install.sh` in the extracted folder. Do not disable OS security checks. English is the default; use `.\Install.cmd --lang ko` or `bash scripts/install.sh --lang ko` for Korean prompts.
+
+[**Installation details, update & removal →**](docs/EXTENSION.md)
+
+<details>
+<summary><strong>Developer quick start / try without an API key</strong></summary>
 
 ```bash
 uv sync
-uv run aside-jev doctor --json
+uv run aside-jev setup --dry-run
 uv run aside-jev dashboard --open
 ```
 
-Try a demo decision without an API key. The default address is `http://127.0.0.1:8766`; add `--port 0` to select an available port.
+The local demo uses `http://127.0.0.1:8766`. Add `--port 0` for an available port. Existing Python/uv users can run `uv run aside-jev setup` for guided connection setup.
 
-### From toolbar to ON
+</details>
 
-| 01 · Load | 02 · Connect locally | 03 · Register MCP & enable |
-| :--- | :--- | :--- |
-| Load [`extension/`](extension/) as an unpacked extension in Aside's extension manager. | Specify the extension ID, account profile, and Native Messaging directory; review the installation preview. | Register the popup's MCP configuration in Aside, turn ON, and start a **new task**. |
-
-See the [**extension installation guide →**](docs/EXTENSION.md) for exact commands, key configuration, backups, and disabling. The installer previews changes by default.
-
-Live decisions require `TYPESAFE_API_KEY` or `TYPESAFEAI_API_KEY`. The extension can also use an explicitly selected local key file. Raw keys are not entered or stored in the popup. Key presence is not proof of successful authentication.
+Live decisions require `TYPESAFE_API_KEY` or `TYPESAFEAI_API_KEY`. Setup accepts hidden terminal input or `--env-file`; keys stay in a local, unencrypted account-accessible file and never enter the popup. Key presence is not authentication proof.
 
 <details>
 <summary><strong>Use MCP without the popup</strong></summary>

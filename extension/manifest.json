@@ -13,5 +13,6 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
   },
-  "default_locale": "en"
+  "default_locale": "en",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvBW62ketXepBC9cSaYV6jOBDPh95BK8/3OtqF986IvCp23PAP1i/VvlvWl73WTIcVpbM2XPXecu822uH7y5u63Wxp7ctq3xXaLsjzwsoIsXyoTDWkHLDDTKx8HqLfQ7FG09P9IbrGI55iFgrypoNPAulQrn27kc1yUQth2YSSoO40pkbiihBfcN2++s11nyTVjAtMtdWIcbtvSpUcZObUHN/HNmw+w6L43Mq41Iy4QpaQaxYOLyUx3+9ZlxqbuP0YCnjSZlGhm+KBf/a96RCMmHeBFzPufA553G0RwXX4egw3VymU+YaGRraL99uDvCQU5XvkzI1+OQaWLUIMsj68wIDAQAB"
 }

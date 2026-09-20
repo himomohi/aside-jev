@@ -14,6 +14,7 @@ def main() -> int:
     parser.add_argument("--extension-id", required=True, help="Aside 확장 관리 화면에 표시된 32자리 ID")
     parser.add_argument("--profile-dir", required=True, help="대상 Aside accountRoot의 실제 절대 경로")
     parser.add_argument("--native-host-dir", required=True, help="Aside가 사용하는 NativeMessagingHosts 폴더의 실제 경로")
+    parser.add_argument("--windows-registry-key", help="확인된 Windows HKCU NativeMessagingHosts 상대 키")
     parser.add_argument("--env-file", help="허용된 TypeSafe 키의 단순 할당만 포함한 UTF-8 파일")
     parser.add_argument("--profile-label", help="확장 팝업에 표시할 프로필 이름")
     parser.add_argument("--config-dir", help="확장 전용 설정 폴더 (기본 ASIDE_JEV_CONFIG_DIR 또는 사용자 .config/aside-jev)")
@@ -23,7 +24,8 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = setup_installation(extension_id=args.extension_id, profile_dir=args.profile_dir, native_host_dir=args.native_host_dir,
-                                    env_file=args.env_file, profile_label=args.profile_label, apply=args.apply, root=args.config_dir)
+                                    env_file=args.env_file, profile_label=args.profile_label, apply=args.apply, root=args.config_dir,
+                                    windows_registry_key=args.windows_registry_key)
     except ControlError as error:
         print(json.dumps({"ok": False, "error": {"code": error.code, "message": str(error)}}, ensure_ascii=False), file=sys.stderr)
         return 2

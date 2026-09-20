@@ -6,7 +6,8 @@
 | --- | --- | --- | --- | --- |
 | Toolbar ON/OFF | MV3 popup | extension/popup.js, controller.mjs | Native Messaging | tests/test_extension_controller.mjs |
 | Account state and settings | native-host, extension-status | extension_control.py, native_host.py | Explicit accountRoot, key file, local config | test_extension_control.py, test_native_host.py |
-| Native registration | scripts/setup_extension.py | setup_installation | Explicit registration directory and extension ID | test_extension_control.py |
+| Guided install | Install.command, Install.cmd, setup CLI | installer.py, scripts/install.sh | Pinned uv/Python, packaged extension, existing Aside account | test_installer.py, macOS bootstrap |
+| Native registration | setup CLI, scripts/setup_extension.py | extension_control.py, native_platform.py, native_registry.py | macOS manifest / explicit Windows HKCU key | test_extension_control.py, test_native_platform.py |
 | Browser loop | jev_browser_run MCP | browser_flow.py, browser_runtime.py | Aside REPL, Jev | test_browser_flow.py, verify_browser_runtime.py |
 | Confidence and OFF gates | jev_choose, jev_step, jev_system_one | mcp_server.py, extension_gate.py | Extension policy, typed responses | test_mcp_server.py, test_jev.py |
 | Connection reuse | choose_live, system_one | jev.py | TypeSafe SDK, httpx2 | test_jev.py, benchmark_latency.py |

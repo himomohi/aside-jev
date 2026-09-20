@@ -27,6 +27,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/aside_jev"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"extension" = "aside_jev/extension_assets"
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

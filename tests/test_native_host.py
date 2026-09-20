@@ -15,6 +15,8 @@ ORIGIN = f"chrome-extension://{EXTENSION_ID}/"
 
 @pytest.fixture(autouse=True)
 def isolated_global_rules(tmp_path, monkeypatch):
+    from test_native_platform import isolate_windows_registration
+    isolate_windows_registration(monkeypatch)
     monkeypatch.setattr(control, "_legacy_rule_paths", lambda: {"user_home": tmp_path / "global-AGENTS.md"})
 
 
@@ -107,7 +109,8 @@ def test_unexpected_error_details_are_not_returned(installed, monkeypatch):
 def test_generated_native_wrapper_runs_cli_with_one_framed_response(installed, tmp_path):
     environment = dict(os.environ)
     environment["HOME"] = str(tmp_path)
-    wrapper = Path(environment["ASIDE_JEV_CONFIG_DIR"]) / "native-host"
+    environment["USERPROFILE"] = str(tmp_path)
+    wrapper = Path(environment["ASIDE_JEV_CONFIG_DIR"]) / ("native-host.cmd" if os.name == "nt" else "native-host")
     result = subprocess.run(
         [str(wrapper), ORIGIN], input=frame({"op": "status"}),
         capture_output=True, env=environment, cwd=tmp_path, timeout=10, check=True,
@@ -120,3 +123,54 @@ def test_generated_native_wrapper_runs_cli_with_one_framed_response(installed, t
     assert not result.stderr
     assert b"native-test-private" not in result.stdout
     assert not (installed / "AGENTS.md").exists()
+
+
+@pytest.mark.parametrize("arguments,valid", [
+    ([ORIGIN], True), ([ORIGIN, "--parent-window=0"], True),
+    ([ORIGIN, "--parent-window=123456"], True),
+    ([ORIGIN, "--other=value"], False), ([ORIGIN, "--parent-window=-1"], False),
+    ([ORIGIN, "--parent-window=1", "extra"], False), (["untrusted"], False), ([], False),
+])
+def test_windows_native_arguments_allow_only_origin_and_optional_parent(arguments, valid):
+    assert native_host.origin_from_arguments(arguments) == (ORIGIN if valid else "")
+
+
+def test_cli_native_host_accepts_browser_parent_window(installed, tmp_path):
+    import sys
+    result = subprocess.run([sys.executable, "-m", "aside_jev.cli", "native-host", ORIGIN, "--parent-window=0"],
+                            input=frame({"op": "status"}), capture_output=True, cwd=tmp_path, timeout=10, check=True)
+    assert native_host.read_message(io.BytesIO(result.stdout))["ok"] is True
+    assert not result.stderr
+
+
+def test_windows_standard_pipes_are_switched_to_binary(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    class Pipe(io.BytesIO):
+        def __init__(self, descriptor, data=b""):
+            super().__init__(data)
+            self.descriptor = descriptor
+
+        def fileno(self):
+            return self.descriptor
+
+    calls = []
+    source, output = Pipe(0, frame({"op": "status"})), Pipe(1)
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(setmode=lambda fd, mode: calls.append((fd, mode))))
+    monkeypatch.setattr(native_host, "os", SimpleNamespace(name="nt", O_BINARY=32768))
+    monkeypatch.setattr(native_host, "sys", SimpleNamespace(stdin=SimpleNamespace(buffer=source), stdout=SimpleNamespace(buffer=output)))
+    monkeypatch.setattr(native_host, "dispatch", lambda origin, message: {"ok": True, "label": "한글\n줄바꿈"})
+    assert native_host.serve(ORIGIN) == 0
+    assert calls == [(0, 32768), (1, 32768)]
+    assert native_host.read_message(io.BytesIO(output.getvalue())) == {"ok": True, "label": "한글\n줄바꿈"}
+
+
+def test_injected_windows_byte_streams_do_not_require_fileno(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(setmode=lambda *_args: pytest.fail("no real pipe")))
+    monkeypatch.setattr(native_host, "os", SimpleNamespace(name="nt", O_BINARY=32768))
+    monkeypatch.setattr(native_host, "dispatch", lambda *_args: {"ok": True})
+    output = io.BytesIO()
+    assert native_host.serve(ORIGIN, stdin=io.BytesIO(frame({"op": "status"})), stdout=output) == 0

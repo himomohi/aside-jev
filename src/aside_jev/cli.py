@@ -79,8 +79,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 def cmd_native_host(args: argparse.Namespace) -> int:
     from .native_host import serve
 
-    serve(args.origin)
-    return 0
+    return serve(args.origin)
 
 
 def cmd_extension_status(_args: argparse.Namespace) -> int:
@@ -95,6 +94,12 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 
     serve_dashboard(args.port, open_browser=args.open, locale=getattr(args, "lang", "en"))
     return 0
+
+
+def cmd_setup(args: argparse.Namespace) -> int:
+    from .installer import setup
+
+    return setup(args)
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -137,10 +142,22 @@ def main(argv: list[str] | None = None) -> None:
 
     p_native = sub.add_parser("native-host", help=t("native"))
     p_native.add_argument("origin")
+    p_native.add_argument("--parent-window", type=int, help=argparse.SUPPRESS)
     p_native.set_defaults(func=cmd_native_host)
 
     p_extension_status = sub.add_parser("extension-status", help=t("status"))
     p_extension_status.set_defaults(func=cmd_extension_status)
+
+    p_setup = sub.add_parser("setup", help=t("setup"))
+    p_setup.add_argument("--profile-dir", help=t("profile_dir"))
+    p_setup.add_argument("--native-host-dir", help=t("host_dir"))
+    p_setup.add_argument("--windows-registry-key", help=t("registry_key"))
+    p_setup.add_argument("--env-file", help=t("env_file"))
+    p_setup.add_argument("--config-dir", help=t("config_dir"))
+    mode = p_setup.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", help=t("dry_run"))
+    mode.add_argument("--yes", action="store_true", help=t("yes"))
+    p_setup.set_defaults(func=cmd_setup)
 
     p_dashboard = sub.add_parser("dashboard", help=t("dashboard"))
     p_dashboard.add_argument("--port", type=int, default=8766, help=t("port"))

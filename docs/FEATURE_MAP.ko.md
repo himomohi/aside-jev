@@ -6,7 +6,8 @@
 | --- | --- | --- | --- | --- |
 | 툴바 ON/OFF | MV3 action popup | extension/popup.js, controller.mjs | Native Messaging | node --test tests/test_extension_controller.mjs |
 | 계정별 활성 상태·설정 | native-host, extension-status | extension_control.py, native_host.py | 명시한 Aside accountRoot, 키 파일, 로컬 설정 | test_extension_control.py, test_native_host.py |
-| Native 연결 설치 | scripts/setup_extension.py | setup_installation | 명시한 NativeMessagingHosts 경로, 확장 ID | test_extension_control.py |
+| 간편 설치 | Install.command, Install.cmd, setup CLI | installer.py, scripts/install.sh | 고정 uv/Python, 패키지 확장, 기존 Aside 계정 | test_installer.py, macOS 초기 설치 |
+| Native 등록 | setup CLI, scripts/setup_extension.py | extension_control.py, native_platform.py, native_registry.py | macOS manifest / 명시한 Windows HKCU 키 | test_extension_control.py, test_native_platform.py |
 | REPL 브라우저 루프 | jev_browser_run MCP | browser_flow.py, browser_runtime.py | aside mcp의 repl, Jev | test_browser_flow.py, verify_browser_runtime.py |
 | 결정·신뢰도·확장 OFF 게이트 | jev_choose, jev_step, jev_system_one | mcp_server.py, extension_gate.py | 확장 정책, typed Jev 응답 | test_mcp_server.py, test_jev.py |
 | HTTP 연결 재사용 | choose_live, system_one | jev.py | typesafe-sdk, httpx2 | test_jev.py, benchmark_latency.py |

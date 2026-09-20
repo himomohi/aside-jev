@@ -109,27 +109,36 @@ flowchart LR
 
 <a id="quick-start"></a>
 
-## 빠른 시작
+## 간단하게 설치하기
 
-**Python 3.11+ · uv · Aside CLI**가 필요합니다. 아래 명령은 현재 체크아웃 기준입니다.
+**Windows·macOS 지원 · Git, Python, uv를 미리 설치할 필요가 없습니다.** 먼저 [Aside](https://aside.com/download)를 설치하고 로그인하세요.
+
+1. **[ZIP 다운로드](https://github.com/himomohi/aside-jev/archive/refs/heads/main.zip)** 후 압축을 풉니다.
+2. Windows는 **`Install.cmd`**, macOS는 **`Install.command`**를 실행합니다. Aside 계정을 선택하고 Jev 키를 입력한 뒤 변경 내용을 확인해 적용합니다.
+3. Aside 다시 열기 → 확장 관리 → 개발자 모드 → **압축해제된 확장 로드**에서 설치기가 표시한 폴더를 선택합니다. **Aside Jev**를 고정하고 **ON**으로 켠 뒤 새 작업을 시작하세요.
+
+설치기가 전용 Python 환경을 준비하고, 확장을 고정 폴더에 복사하며, 기존 설정을 보존해 Jev MCP 연결을 추가합니다. PC마다 확장 ID를 복사할 필요가 없습니다. **설치 적용 전에는 Aside를 종료**해 계정 설정이 동시에 덮어써지는 것을 방지하세요.
+
+> Windows Native Messaging은 해당 Aside 빌드의 등록 키가 필요합니다. 기존 Aside `NativeMessagingHosts` 경로를 찾으면 제안하고, 없으면 확인된 키를 입력받습니다. Windows 실기기의 최종 브라우저 연결은 아직 검증하지 않았습니다. [Windows 상세 안내 →](docs/EXTENSION.ko.md#windows)
+
+macOS에서 다운로드한 `.command`가 열리지 않으면 압축을 푼 폴더에서 `bash scripts/install.sh`를 실행하세요. OS 보안 검사를 해제할 필요는 없습니다. 설치 문구는 영어가 기본이며 `.\Install.cmd --lang ko` 또는 `bash scripts/install.sh --lang ko`로 한국어를 선택합니다.
+
+[**설치 상세·업데이트·제거 →**](docs/EXTENSION.ko.md)
+
+<details>
+<summary><strong>개발자 시작 / API 키 없이 체험</strong></summary>
 
 ```bash
 uv sync
-uv run aside-jev doctor --json
+uv run aside-jev setup --dry-run
 uv run aside-jev dashboard --open
 ```
 
-로컬 작업 공간에서 키 없이 데모 결정을 확인할 수 있습니다. 기본 주소는 `http://127.0.0.1:8766`이며, 빈 포트를 사용하려면 `--port 0`을 추가합니다.
+로컬 데모 주소는 `http://127.0.0.1:8766`입니다. 빈 포트를 사용하려면 `--port 0`을 추가하세요. Python/uv가 있다면 `uv run aside-jev setup`으로 연결 설치만 진행할 수 있습니다.
 
-### 툴바에서 ON까지
+</details>
 
-| 01 · 확장 로드 | 02 · 로컬 연결 | 03 · MCP 연결과 ON |
-| :--- | :--- | :--- |
-| Aside 확장 관리 화면에서 [`extension/`](extension/)을 압축 해제된 확장으로 로드합니다. | 확장 ID·계정 프로필·Native Messaging 폴더를 지정하고 설치 미리보기를 확인합니다. | 팝업의 MCP 설정을 Aside에 등록한 뒤 ON으로 전환하고 **새 작업**을 시작합니다. |
-
-[**확장 설치 안내 →**](docs/EXTENSION.ko.md)에서 정확한 명령, 키 설정, 백업과 비활성화 방법을 확인하세요. 설치 도우미는 기본적으로 미리보기만 수행합니다.
-
-Live 결정에는 `TYPESAFE_API_KEY` 또는 `TYPESAFEAI_API_KEY`가 필요합니다. 확장은 명시한 로컬 키 파일도 사용할 수 있으며 팝업에 키 원문을 입력하거나 저장하지 않습니다. 키 존재 확인과 실제 인증 성공은 구분합니다.
+Live 판단에는 `TYPESAFE_API_KEY` 또는 `TYPESAFEAI_API_KEY`가 필요합니다. 설치기의 숨김 입력이나 `--env-file`을 사용합니다. 키는 계정에서 접근할 수 있는 암호화되지 않은 로컬 파일에만 저장되며 팝업으로 전달하지 않습니다. 키 존재 확인은 실제 인증 성공을 뜻하지 않습니다.
 
 <details>
 <summary><strong>MCP만 연결해서 사용하기</strong></summary>

@@ -63,6 +63,15 @@ The popup HTML preview covered an unconfirmed host, disabled toggle, and reconne
 
 ![English and Korean UI evidence](screenshots/i18n-contact-sheet.jpg)
 
+## Guided installation on Windows and macOS
+
+- Full local regression after installer changes: **215 Python tests passed, 1 Windows-only integration test skipped; 20 JavaScript tests passed**. Translation parity caught one missing mirrored label during development; both dictionaries were synchronized and the JavaScript suite passed afterward.
+- On macOS, the actual bootstrap ran in a temporary directory with `uv` excluded from PATH. It downloaded and SHA-256-verified uv 0.12.17, prepared Python 3.11.16, and installed the packaged app. A subsequent install used the locked dependency export with hash verification and Korean setup output.
+- Synthetic account paths included spaces and Korean characters. Account settings and other MCP entries were preserved; setup cancellation, previews, repeated setup, key secrecy, settings races, conflicting ownership, and rollback were tested. No real user account files were changed.
+- The installed native-host executable accepted the fixed extension origin and returned a correctly framed status response with MCP configuration recognized and OFF retained. This proves the local process contract, not a browser-launched connection.
+- Windows registry ownership/view conflicts and failure recovery use a fake registry. Generated Windows Python entry points were exercised as real subprocesses on macOS. Real Windows file handles, batch execution, ACL behavior, and Aside browser registration remain unverified until an actual Windows run.
+- Installer-owned code and extension locale assets are included in the wheel. The extension public key produces the same ID independent of folder location. No private signing key is included.
+
 ## Remaining boundaries
 
 - Actual Jev API authentication, decision quality, and inference time remain unverified.

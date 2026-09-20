@@ -12,3 +12,4 @@
 - Local decision workspace, timing breakdown, session records, CLI diagnostics, and a localhost SDK benchmark.
 - Remove installation-time edits to home-wide instructions. Use explicit installation and account-scoped backups.
 - English by default with Korean UI localization, paired READMEs, and localized Remotion videos sharing measurements and timing.
+- Guided Windows/macOS launchers prepare Python/uv, install a fixed-ID extension, and merge account MCP settings with backups. Add Windows native framing, file locking, and explicit HKCU registration; real Windows browser integration remains unverified.

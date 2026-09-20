@@ -49,7 +49,9 @@ function render({ status, busy, error, errorCode }) {
   $("model").textContent = status.model || "jev-latest";
   $("confidence").value = status.min_confidence;
   $("timeout").value = status.timeout_s;
-  $("mcp-status").textContent = t("Connect in Aside settings");
+  $("mcp-status").textContent = status.mcp_registration === "configured"
+    ? t("Registered · connection unverified")
+    : t("Connect in Aside settings");
   $("footer-status").textContent = t("Local helper connected");
   $("scope-note").textContent = status.enabled
     ? t("Use Jev MCP in a new task. Running tasks are not switched automatically.")

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
-import fcntl
 import json
 import os
 from pathlib import Path
@@ -11,11 +10,13 @@ import re
 import shlex
 import stat
 import sys
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 import uuid
 
 from .core import validate_confidence
 from .jev import resolve_timeout
+from .native_platform import ControlError
+from . import native_platform, native_registry
 
 HOST_NAME = "com.aside_jev.control"
 BEGIN = "<!-- BEGIN aside-jev extension-control -->"
@@ -27,12 +28,6 @@ KEY_NAMES = ("TYPESAFE_API_KEY", "TYPESAFEAI_API_KEY")
 MAX_FILE_BYTES = 262144
 
 
-class ControlError(RuntimeError):
-    def __init__(self, code: str, message: str):
-        super().__init__(message)
-        self.code = code
-
-
 def config_root() -> Path:
     return _absolute(os.environ.get("ASIDE_JEV_CONFIG_DIR") or Path.home() / ".config" / "aside-jev")
 
@@ -42,13 +37,15 @@ def _absolute(path: str | Path) -> Path:
 
 
 def _check_path(path: Path) -> None:
+    if os.name == "nt":
+        native_platform.validate_windows_path(path)
     # resolve()로 심볼릭 링크를 조용히 따라가지 않는다.
     for part in (*reversed(path.parents), path):
         try:
             info = part.lstat()
         except FileNotFoundError:
             continue
-        if stat.S_ISLNK(info.st_mode):
+        if stat.S_ISLNK(info.st_mode) or native_platform.is_reparse(info):
             raise ControlError("unsafe_path", "심볼릭 링크가 포함된 경로는 변경할 수 없습니다. 실제 프로필 경로를 지정해 주세요.")
         if part != path and not stat.S_ISDIR(info.st_mode):
             raise ControlError("unsafe_path", "설정 경로의 상위 항목이 폴더가 아닙니다.")
@@ -80,6 +77,8 @@ def _directory_fd(path: Path, *, create: bool = False) -> int:
 
 def _read(path: Path, *, limit: int = MAX_FILE_BYTES) -> bytes | None:
     _check_path(path)
+    if os.name == "nt":
+        return native_platform.windows_read(path, limit)
     try:
         parent_fd = _directory_fd(path.parent)
     except FileNotFoundError:
@@ -125,12 +124,18 @@ def _json_bytes(value: Any) -> bytes:
 
 def _make_directory(path: Path) -> None:
     _check_path(path)
+    if os.name == "nt":
+        with native_platform.windows_directory(path, create=True):
+            return
     fd = _directory_fd(path, create=True)
     os.close(fd)
 
 
 def _atomic_write(path: Path, data: bytes, *, mode: int = 0o600) -> None:
     _check_path(path)
+    if os.name == "nt":
+        native_platform.windows_atomic_write(path, data)
+        return
     _make_directory(path.parent)
     if path.exists():
         _read(path)
@@ -167,6 +172,11 @@ def _lock(root: Path, *, create: bool = False) -> Iterator[None]:
     elif not root.is_dir():
         raise ControlError("not_configured", "확장 연결을 먼저 설치해 주세요. 설치 미리보기 명령에서 프로필과 확장 ID를 지정할 수 있습니다.")
     _check_path(root / ".lock")
+    if os.name == "nt":
+        with native_platform.windows_lock(root / ".lock"):
+            yield
+        return
+    import fcntl
     parent_fd = _directory_fd(root)
     try:
         fd = os.open(".lock", os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=parent_fd)
@@ -277,7 +287,10 @@ def _rules(config: dict[str, Any]) -> str:
 
 
 def _skill(config: dict[str, Any]) -> str:
-    command = "ASIDE_JEV_CONFIG_DIR=" + shlex.quote(str(Path(config["mcp_wrapper"]).parent)) + " " + shlex.join([config["python_executable"], "-m", "aside_jev.cli", "extension-status"])
+    if config.get("platform") == "windows":
+        command = '"' + str(Path(config["mcp_wrapper"]).parent / "status-host.cmd") + '"'
+    else:
+        command = "ASIDE_JEV_CONFIG_DIR=" + shlex.quote(str(Path(config["mcp_wrapper"]).parent)) + " " + shlex.join([config["python_executable"], "-m", "aside_jev.cli", "extension-status"])
     return f"""---
 name: aside-jev
 description: Aside 브라우저 행동 선택, 완료 여부, 위험 판단에 Jev를 사용하는 사용자 설치 확장. 사용 전에 확장 상태를 확인한다.
@@ -352,6 +365,12 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
     except ControlError:
         ready, key_status = False, "file_error"
     legacy_global, warnings = _legacy_warnings(config)
+    entry = _mcp_entry(config)
+    try:
+        settings = json.loads(_text(Path(config["profile_dir"]) / "settings.json") or "{}")
+        mcp_registered = settings.get("mcp", {}).get("servers", {}).get("aside-jev") == entry
+    except (ControlError, ValueError, AttributeError, OSError):
+        mcp_registered = False
     return {
         "configured": True,
         "enabled": bool(config["enabled"] and applied),
@@ -366,14 +385,23 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         "enforcement": "instructions_only",
         "scope": "new_aside_tasks",
         "native_interception": False,
-        "mcp_registration": "manual",
+        "mcp_registration": "configured" if mcp_registered else "manual",
         "mcp_connected": None,
         "legacy_blocks": legacy_count,
         "legacy_global_rules": legacy_global,
         "warnings": warnings,
-        "mcp_config": {"mcpServers": {"aside-jev": {"command": config["mcp_wrapper"], "args": []}}},
-        "aside_mcp_entry": {"enabled": True, "transport": "stdio", "command": config["mcp_wrapper"], "args": [], "env": {}},
+        "mcp_config": {"mcpServers": {"aside-jev": {"command": entry["command"], "args": entry["args"]}}},
+        "aside_mcp_entry": entry,
     }
+
+
+def _mcp_entry(config: dict[str, Any]) -> dict[str, Any]:
+    if config.get("platform") == "windows":
+        command = config["python_executable"]
+        args = ["-I", str(Path(config["mcp_wrapper"]).parent / "mcp-entry.py")]
+    else:
+        command, args = config["mcp_wrapper"], []
+    return {"enabled": True, "transport": "stdio", "command": command, "args": args, "env": {}}
 
 
 def get_status() -> dict[str, Any]:
@@ -387,7 +415,7 @@ def load_runtime_policy() -> dict[str, Any]:
     return {name: status[name] for name in ("enabled", "model", "min_confidence", "timeout_s")}
 
 
-def _transaction(root: Path, updates: list[tuple[Path, bytes, int]]) -> None:
+def _transaction(root: Path, updates: list[tuple[Path, bytes, int]], *, after_write: Callable[[], None] | None = None) -> None:
     changed: list[tuple[Path, bytes, int, bytes | None, int]] = []
     for path, data, mode in updates:
         original = _read(path)
@@ -395,6 +423,8 @@ def _transaction(root: Path, updates: list[tuple[Path, bytes, int]]) -> None:
         if original != data:
             changed.append((path, data, mode, original, previous_mode))
     if not changed:
+        if after_write is not None:
+            after_write()
         return
     backup_root = root / "backups"
     _make_directory(backup_root)
@@ -414,7 +444,9 @@ def _transaction(root: Path, updates: list[tuple[Path, bytes, int]]) -> None:
             # rename 직후 fsync가 실패해도 이번 대상까지 원복 목록에 포함한다.
             completed.append((path, data, original, previous_mode))
             _atomic_write(path, data, mode=mode)
-    except Exception:
+        if after_write is not None:
+            after_write()
+    except Exception as error:
         try:
             for path, data, original, previous_mode in reversed(completed):
                 current = _read(path)
@@ -424,15 +456,20 @@ def _transaction(root: Path, updates: list[tuple[Path, bytes, int]]) -> None:
                     raise ControlError("file_changed", "다른 작업의 변경이 있어 자동 원복을 중단했습니다.")
                 if original is None:
                     _check_path(path)
-                    parent_fd = _directory_fd(path.parent)
-                    try:
-                        os.unlink(path.name, dir_fd=parent_fd)
-                    finally:
-                        os.close(parent_fd)
+                    if os.name == "nt":
+                        native_platform.windows_unlink(path)
+                    else:
+                        parent_fd = _directory_fd(path.parent)
+                        try:
+                            os.unlink(path.name, dir_fd=parent_fd)
+                        finally:
+                            os.close(parent_fd)
                 else:
                     _atomic_write(path, original, mode=previous_mode)
         except Exception:
             raise ControlError("rollback_failed", "변경을 전부 되돌리지 못했습니다. 확장을 사용하지 말고 설정 폴더의 backups 기록을 확인해 주세요.") from None
+        if isinstance(error, ControlError) and error.code in ("registry_write", "registry_access", "rollback_failed"):
+            raise error
         raise ControlError("write_failed", "설정을 저장하지 못해 변경을 되돌렸습니다. 파일 권한을 확인해 주세요.") from None
 
 
@@ -491,6 +528,9 @@ def setup_installation(
     *, extension_id: str, profile_dir: str | Path, native_host_dir: str | Path,
     env_file: str | Path | None = None, profile_label: str | None = None,
     apply: bool = False, root: str | Path | None = None,
+    windows_registry_key: str | None = None,
+    extra_updates: list[tuple[Path, bytes, int]] | None = None,
+    expected_files: dict[Path, bytes | None] | None = None,
 ) -> dict[str, Any]:
     """미리보기가 기본이며 apply=True를 명시한 설치에서만 연결 파일을 만든다."""
     if not re.fullmatch(r"[a-p]{32}", extension_id):
@@ -505,8 +545,14 @@ def setup_installation(
     if environment_file is not None:
         _check_path(environment_file)
     python = os.path.abspath(sys.executable)
-    native_wrapper = target_root / "native-host"
-    mcp_wrapper = target_root / "mcp-host"
+    platform = native_platform.platform_name()
+    windows = platform == "windows"
+    if windows:
+        windows_registry_key = native_registry.validate_registry_key(windows_registry_key, HOST_NAME)
+    elif windows_registry_key is not None:
+        raise ControlError("registry_target", "Windows 레지스트리 등록은 Windows에서만 지원합니다.")
+    native_wrapper = target_root / ("native-host.cmd" if windows else "native-host")
+    mcp_wrapper = target_root / ("mcp-host.cmd" if windows else "mcp-host")
     manifest_path = hosts / f"{HOST_NAME}.json"
     config = {
         "version": 1, "extension_id": extension_id, "profile_dir": str(profile),
@@ -514,6 +560,7 @@ def setup_installation(
         "python_executable": python, "mcp_wrapper": str(mcp_wrapper),
         "enabled": False, "model": "jev-latest", "min_confidence": 0.7, "timeout_s": 15.0,
         "added_separator": False,
+        "platform": platform, "windows_registry_key": windows_registry_key,
     }
     manifest = {"name": HOST_NAME, "description": "Aside Jev profile instruction control", "path": str(native_wrapper), "type": "stdio", "allowed_origins": [f"chrome-extension://{extension_id}/"]}
     registered = _text(manifest_path, limit=65536)
@@ -524,30 +571,65 @@ def setup_installation(
                 raise ValueError()
         except (ValueError, AttributeError):
             raise ControlError("installation_conflict", "같은 이름의 Native Messaging 연결이 다른 대상에 등록되어 있습니다. 기존 연결을 먼저 확인해 주세요.") from None
-    prefix = f"#!/bin/sh\n# 설치한 고정 경로만 실행한다. 입력을 셸 코드로 평가하지 않는다.\nexport ASIDE_JEV_CONFIG_DIR={shlex.quote(str(target_root))}\n"
-    native_script = prefix + f"exec {shlex.quote(python)} -m aside_jev.cli native-host \"$@\"\n"
-    mcp_script = prefix + f"exec {shlex.quote(python)} -m aside_jev.cli serve --extension\n"
+    if windows:
+        scripts = [
+            (native_wrapper, native_platform.windows_launcher(python, native=True), 0o700),
+            (mcp_wrapper, native_platform.windows_launcher(python, native=False), 0o700),
+            (target_root / "native-entry.py", native_platform.windows_entry(native=True), 0o600),
+            (target_root / "mcp-entry.py", native_platform.windows_entry(native=False), 0o600),
+            (target_root / "status-host.cmd", native_platform.windows_status_launcher(python), 0o700),
+            (target_root / "status-entry.py", native_platform.windows_status_entry(), 0o600),
+        ]
+    else:
+        prefix = f"#!/bin/sh\n# 설치한 고정 경로만 실행한다. 입력을 셸 코드로 평가하지 않는다.\nexport ASIDE_JEV_CONFIG_DIR={shlex.quote(str(target_root))}\n"
+        scripts = [
+            (native_wrapper, (prefix + f"exec {shlex.quote(python)} -m aside_jev.cli native-host \"$@\"\n").encode(), 0o700),
+            (mcp_wrapper, (prefix + f"exec {shlex.quote(python)} -m aside_jev.cli serve --extension\n").encode(), 0o700),
+        ]
+    registration = native_registry.prepare_registration(windows_registry_key, str(manifest_path), str(target_root)) if windows else None
+    extras = [(_absolute(path), data, mode) for path, data, mode in (extra_updates or [])]
+    expectations = {_absolute(path): expected for path, expected in (expected_files or {}).items()}
+    generated_paths = [target_root / "config.json", *(path for path, _, _ in scripts), manifest_path]
+    all_paths = [*generated_paths, *(path for path, _, _ in extras)]
+    if len(set(all_paths)) != len(all_paths):
+        raise ControlError("input", "설치 파일 목록에 중복된 대상 경로가 있습니다.")
+    for path, data, mode in extras:
+        _check_path(path)
+        if not isinstance(data, bytes) or len(data) > MAX_FILE_BYTES or mode not in (0o600, 0o644, 0o700, 0o755):
+            raise ControlError("input", "추가 설치 파일의 내용·크기·권한이 올바르지 않습니다.")
+    for path, expected in expectations.items():
+        _check_path(path)
+        if expected is not None and not isinstance(expected, bytes):
+            raise ControlError("input", "설치 전 파일 상태는 바이트 또는 빈 상태로 지정해 주세요.")
     plan = {
         "apply": apply, "extension_id": extension_id, "profile_label": config["profile_label"],
-        "files": [str(target_root / "config.json"), str(native_wrapper), str(mcp_wrapper), str(manifest_path)],
+        "files": [str(path) for path in all_paths],
+        "aside_mcp_entry": _mcp_entry(config),
         "native_host": manifest, "enforcement": "instructions_only", "scope": "new_aside_tasks",
+        "platform": platform,
+        "registry_registration": {"hive": "HKCU", "key": windows_registry_key, "view": "32", "manifest": str(manifest_path)} if windows else None,
         "starts_background_service": False, "mcp_registration": "manual",
         "disable": "확장 팝업에서 OFF로 전환하면 선택한 프로필의 관리 지침만 제거됩니다. 등록 파일은 설치 미리보기의 files 목록에서 확인할 수 있습니다.",
     }
     if not apply:
         return plan
     with _lock(target_root, create=True):
+        for path, expected in expectations.items():
+            if _read(path) != expected:
+                raise ControlError("file_changed", "설치 미리보기 이후 파일이 변경되어 중단했습니다. 새 미리보기를 확인해 주세요.")
         existing = _text(target_root / "config.json", limit=65536)
         if existing is not None:
             previous = _load_config(target_root)
-            identity = ("extension_id", "profile_dir", "env_file")
+            identity = ("extension_id", "profile_dir", "env_file", "windows_registry_key")
             if any(previous.get(name) != config[name] for name in identity):
                 raise ControlError("installation_conflict", "기존 연결이 다른 대상에 설치되어 있습니다. 기존 연결을 해제한 뒤 별도 설정 폴더를 사용해 주세요.")
             config = {**config, **{name: previous[name] for name in ("enabled", "min_confidence", "timeout_s", "added_separator")}}
+        elif any(_read(path) is not None for path, _, _ in scripts):
+            raise ControlError("installation_conflict", "설치 폴더에 소유권을 확인할 수 없는 실행 파일이 있습니다. 별도 설정 폴더를 사용해 주세요.")
         _transaction(target_root, [
             (target_root / "config.json", _json_bytes(config), 0o600),
-            (native_wrapper, native_script.encode(), 0o700),
-            (mcp_wrapper, mcp_script.encode(), 0o700),
+            *scripts,
             (manifest_path, _json_bytes(manifest), 0o600),
-        ])
+            *extras,
+        ], after_write=registration.apply if registration is not None else None)
     return plan

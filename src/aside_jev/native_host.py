@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import struct
 import sys
 from typing import Any, BinaryIO
@@ -90,6 +92,13 @@ def serve(origin: str, *, stdin: BinaryIO | None = None, stdout: BinaryIO | None
     """한 프레임만 처리한다. 감시 루프나 상주 프로세스를 만들지 않는다."""
     source = stdin if stdin is not None else sys.stdin.buffer
     destination = stdout if stdout is not None else sys.stdout.buffer
+    if os.name == "nt":
+        import msvcrt
+        # 실제 표준 파이프에만 적용한다. 주입한 BytesIO 테스트 스트림은 변환하지 않는다.
+        if stdin is None:
+            msvcrt.setmode(source.fileno(), os.O_BINARY)
+        if stdout is None:
+            msvcrt.setmode(destination.fileno(), os.O_BINARY)
     try:
         message = read_message(source)
         if message is None:
@@ -107,8 +116,16 @@ def serve(origin: str, *, stdin: BinaryIO | None = None, stdout: BinaryIO | None
     return 0
 
 
+def origin_from_arguments(arguments: list[str]) -> str:
+    if not arguments or not re.fullmatch(r"chrome-extension://[a-p]{32}/", arguments[0]):
+        return ""
+    if len(arguments) > 2 or (len(arguments) == 2 and not re.fullmatch(r"--parent-window=[0-9]+", arguments[1])):
+        return ""
+    return arguments[0]
+
+
 def main() -> None:
-    origin = sys.argv[1] if len(sys.argv) == 2 else ""
+    origin = origin_from_arguments(sys.argv[1:])
     raise SystemExit(serve(origin))
 
 

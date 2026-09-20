@@ -1,48 +1,77 @@
 **English** | [한국어](EXTENSION.ko.md)
 
-# Connect the Aside toolbar extension
+# Install Aside Jev
 
-The package consists of an MV3 popup, an on-demand Native Messaging helper, and a persistent MCP process. The extension requests only `nativeMessaging`: no background service worker, content script, or all-sites permission. It does not create an OS service or login item.
+## Quick installation
 
-## Setup
+1. Install [Aside](https://aside.com/download), sign in, and launch it once. Then quit Aside before applying setup.
+2. [Download this project's ZIP](https://github.com/himomohi/aside-jev/archive/refs/heads/main.zip), extract it, and run **Install.command** (macOS) or **Install.cmd** (Windows).
+3. Choose your account, enter your Jev API key in the hidden prompt, and confirm the displayed paths. Reopen Aside → Extensions → Developer mode → **Load unpacked** → select the extension folder printed by setup. Pin Aside Jev, turn **ON**, and start a new task.
 
-1. Run `uv sync` to prepare the Python environment.
-2. Load this repository's `extension/` directory as an unpacked extension in Aside's extension manager. Moving the directory can change its extension ID.
-3. Identify the extension ID, target Aside `accountRoot`, and Native Messaging registration directory for your Aside build. The installer does not guess account or host paths.
-4. Preview with your actual values:
+No Git, Python, or uv installation is required beforehand. The launcher downloads uv 0.12.17 if needed, verifies its archive SHA-256, prepares Python 3.11, installs dependencies from the checked-in `uv.lock` with hash verification, and installs the package into its own environment. Internet access is needed for these downloads. It does not change PATH, execution policy, login items, or OS services. The Native Messaging helper runs only when the popup requests it; Aside manages the MCP process.
+
+The installer copies the packaged extension to a stable directory, so deleting the extracted ZIP folder afterwards will not break the connection. It merges only `mcp.servers.aside-jev` in the selected account's `settings.json`. Other settings and MCP entries are retained; changed files are backed up. An unrelated existing `aside-jev` entry is rejected. **Keep Aside closed while applying**, because a running app may save its own cached settings later.
+
+The extension has a fixed public key and ID: `pendehmejnpgceflngbnbpagpodiiemg`. The public key is not a secret; no private signing key is shipped. You do not need to copy an extension ID for a fresh guided install.
+
+### English / Korean
+
+English is the default. From the extracted folder:
+
+| Platform | Korean setup |
+| --- | --- |
+| macOS Terminal | `bash scripts/install.sh --lang ko` |
+| Windows Command Prompt | `.\Install.cmd --lang ko` |
+
+If macOS cannot open the downloaded `.command`, use `bash scripts/install.sh` in Terminal. OS security policies remain in effect. On managed Windows devices, download or execution restrictions must be handled through your normal administrator process.
+
+<a id="windows"></a>
+
+## Windows registration
+
+Aside officially announced Windows availability in [v1.0.914.1](https://docs.aside.com/changelog/native). Native Messaging uses a [browser-specific Windows registry key](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging), whereas macOS uses a manifest directory.
+
+Setup proposes `Software\Aside\NativeMessagingHosts\com.aside_jev.control` **only if the Aside NativeMessagingHosts parent already exists** in HKCU or HKLM. A product/update registry key alone is not enough. If no parent is found, supply the Native Messaging key verified for your installed Aside build with `--windows-registry-key`, or at the prompt. The installer does not guess or register Chrome/Edge as a fallback. If you cannot confirm the key, stop there; Python package installation alone does not establish browser integration.
+
+Registration writes only the specified host under **HKCU**, without administrator elevation. The installer detects conflicting registrations and backs up files; registration failure rolls back the file changes. Windows wrappers support native binary framing and browser `--parent-window` arguments. File access inherits the parent directory's Windows ACL.
+
+**Verification boundary:** macOS bootstrap and temporary-profile integration were exercised locally. Windows code paths and registry recovery have automated tests, but real Windows `.cmd`, Win32 handles, and an Aside extension-to-host connection have not been exercised on a Windows PC. See [validation](VALIDATION.md).
+
+## Locations
+
+| Item | macOS | Windows |
+| --- | --- | --- |
+| Python environment and installer files | `~/Library/Application Support/AsideJev` | `%LOCALAPPDATA%\AsideJev` |
+| Configuration, extension, key file, backups | `~/.config/aside-jev` | `%USERPROFILE%\.config\aside-jev` |
+| Account detection | Existing `~/.aside/u/<number>/settings.json` | Existing `%USERPROFILE%\.aside\u\<number>\settings.json` |
+| Native host registration | Existing Aside data directory → `NativeMessagingHosts` | Explicit HKCU host key → manifest in configuration directory |
+
+Custom account paths are accepted when auto-detection finds no account. `ASIDE_JEV_INSTALL_DIR` overrides the runtime location; `--config-dir` or `ASIDE_JEV_CONFIG_DIR` overrides configuration. Use real local paths; symbolic links, Windows junctions, network paths and device paths are not supported for connection files.
+
+## API key and settings
+
+Setup accepts a hidden terminal key, an existing key file through `--env-file`, or a `TYPESAFE_API_KEY` / `TYPESAFEAI_API_KEY` environment value. For a fresh install, a terminal-only value is saved to the local key file after confirmation so browser launches can use it later. Keys are stored **unencrypted locally**, never printed or sent to the popup. The file permits simple assignments of these two key names; it is not executed as a shell script.
+
+You may skip the key and rerun setup later. ON stays unavailable until a key is configured. Key presence does not verify API authentication. The popup distinguishes saved MCP configuration from a verified running MCP connection.
+
+## Preview and advanced setup
+
+For developers with uv already installed:
 
 ```bash
-uv run python scripts/setup_extension.py \
-  --extension-id '32-character-ID-from-extension-manager' \
-  --profile-dir '/absolute/Aside/accountRoot' \
-  --native-host-dir '/absolute/Aside/NativeMessagingHosts' \
-  --env-file '/absolute/path/to/key-env-file' \
-  --profile-label 'My Aside account' \
-  --dry-run
+uv run aside-jev setup --dry-run
+uv run aside-jev setup --lang ko
 ```
 
-Review the target paths, then replace `--dry-run` with `--apply` to register the connection files. Existing files are backed up. Native Messaging registration adds a program-execution connection; follow the approval policy of the installation environment.
+`setup --dry-run` never writes connection files or registry entries. The outer Install launcher still prepares the package environment before invoking it. Use `setup --help` for `--profile-dir`, `--native-host-dir`, `--windows-registry-key`, `--env-file`, `--config-dir`, and `--yes` (explicit noninteractive application, no key prompt).
 
-The key file permits simple assignments of `TYPESAFE_API_KEY` or `TYPESAFEAI_API_KEY` only. It is not sourced as shell code, and arbitrary commands are not executed. Raw keys are never shown in the popup or status response.
+The original `scripts/setup_extension.py` remains available for manual extension IDs and explicit paths. Its default is preview; `--apply` registers only the local helper and does not automatically merge MCP settings.
 
-5. Use the popup's **Copy MCP config**, or `mcp_config` / `aside_mcp_entry` from `uv run aside-jev extension-status`, to register the MCP connection in Aside. The dedicated wrapper runs `serve --extension` and checks ON/OFF for each request. If installed with a custom `--config-dir`, use the same `ASIDE_JEV_CONFIG_DIR` for status checks.
-6. Refresh the popup's connection and turn ON. The UI confirms key presence and saved instructions before displaying ON. Key presence does not verify API authentication.
-7. Start a **new Aside task**. Route continuous browser work through `jev_browser_run`.
+## Update, disable, and remove
 
-The popup defaults to English and offers a persistent `English / 한국어` selector. Extension-manager metadata follows the browser's locale through Chrome's `_locales` mechanism, with English as `default_locale`; it can differ from the popup selection.
+- **Update a guided installation:** download the new ZIP and run the same launcher with the same install/config directories. Reload the extension in Aside after the files update. Backups and unrelated account settings are preserved.
+- **Earlier manual installation:** the new fixed extension ID or key-file path may differ. Setup refuses to replace an existing connection with another identity. Turn the old popup OFF, disable its MCP entry, remove the old extension, and archive the old preview-listed host registration and config before starting a fresh guided install. Keep backups until the new setup works.
+- **Disable:** turn OFF and start a new task. It removes only the selected account's managed instructions; new decisions in the dedicated MCP stop. In-flight actions are not undone.
+- **Remove:** turn OFF, disable/remove the Jev MCP entry in Aside, and remove the extension. Archive the installer/config directories and the exact preview-listed host manifest. On Windows remove only the displayed `HKCU\…\com.aside_jev.control` host key owned by this installation; do not remove parent registry keys. Restore account documents from backups if needed.
 
-## Meaning of ON/OFF
-
-- **ON:** apply the managed AGENTS.md block and `skills/user/aside-jev/SKILL.md` in the selected accountRoot. Recheck enabled state at execution boundaries.
-- **OFF:** remove that managed block, retain the status-check skill, and reject new decisions in the extension-specific MCP. Already-started network/browser actions are not undone.
-- Warn when old Jev instructions remain in home/global Aside instructions. The extension does not edit global files automatically.
-- If disconnected or unable to save, show that status needs checking rather than retaining a stale ON indicator.
-- There is no hook intercepting every built-in tool. Enforcement is limited to the provided MCP path.
-
-## Disable and remove
-
-Turn OFF in the popup and use a new task. To remove completely, disable the MCP connection in Aside settings and remove the extension. The preview-listed Native Messaging manifest and wrappers in the configuration directory may be archived or removed. Restore account documents from backups if needed. Other tools' files and global AGENTS.md are outside the removal scope.
-
-## Validation boundary
-
-Temporary profiles cover native framing, origin checks, ON/OFF, backups, failure recovery, and generated wrapper execution. Loading the extension into a real user Aside account and registering Native Messaging there have not been verified. Confirm the registration path and UI connection in the installation environment.
+ON applies to new task instructions and the dedicated Jev MCP path. It does not intercept every built-in Aside tool. The extension requests only `nativeMessaging`, with no all-sites permission, content script, or background service worker.

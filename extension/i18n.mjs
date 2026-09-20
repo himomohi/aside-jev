@@ -142,6 +142,7 @@ const ko = {
   "Decision model": "결정 모델",
   "Aside MCP connection": "Aside MCP 연결",
   "Setup required": "설정 필요",
+  "Registered · connection unverified": "등록됨 · 실제 연결 미확인",
   "Observe, Jev decides, Aside executes": "관찰, Jev 판단, Aside 실행",
   "Jev decides": "Jev 판단",
   "Aside executes": "Aside 실행",
