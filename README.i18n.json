@@ -1,0 +1,19 @@
+{
+  "default_locale": "en",
+  "locales": {
+    "en": {
+      "readme": "README.md",
+      "video": "docs/media/jev-speed-duel.mp4",
+      "gif": "docs/media/jev-speed-duel.gif",
+      "poster": "docs/media/jev-speed-duel-poster.png",
+      "screenshot": "docs/screenshots/decision.png"
+    },
+    "ko": {
+      "readme": "README.ko.md",
+      "video": "docs/media/jev-speed-duel.ko.mp4",
+      "gif": "docs/media/jev-speed-duel.ko.gif",
+      "poster": "docs/media/jev-speed-duel.ko-poster.png",
+      "screenshot": "docs/screenshots/decision.ko.png"
+    }
+  }
+}

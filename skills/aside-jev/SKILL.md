@@ -1,36 +1,17 @@
 ---
-name: aside-jev
-description: REQUIRED for Aside browse / computer-use. Decide every browser step with TypeSafe Jev (Choice/Score/Noul or action IDs); Aside only executes. Never invent selectors.
+name: "aside-jev"
+description: "Aside Jev 확장이 ON인 브라우저 작업에서 모든 행동 선택과 완료·위험 판단을 TypeSafe Jev에 요청합니다. Aside는 관찰과 선택된 행동의 실행을 담당합니다."
 ---
 
-# aside-jev (Aside browse → Jev)
+# Aside Jev
 
-**Jev decides. Aside browses.**
+1. 작업 시작 전 `jev_extension_status`로 실제 상태를 읽습니다. ON/OFF를 추정하지 않습니다.
+2. OFF이면 이 확장 경로를 사용하지 않습니다. ON인데 MCP가 없거나 상태를 확인하지 못하면 작업을 멈추고 연결을 안내합니다.
+3. 연속 브라우저 작업은 `jev_browser_run`을 우선 사용합니다. 기존 탭의 `target_id`, 사용자 허용 범위의 정확한 `role/name/action` 규칙, 고유한 `completion_text`를 전달합니다. 이 도구가 지속 REPL 세션에서 관찰 → 정제 → Jev 선택 → 실행 → 새 관찰을 수행합니다. 입력값을 임의로 만들지 않으며 `fill`은 명시한 `value`만 사용합니다.
+4. 이 루프가 지원하지 않는 작업은 Aside로 현재 화면을 관찰하고, 관찰에서 확인한 대상만으로 완전한 후보 표를 만듭니다. 각 행은 `id`, `description`, `tool`, `arguments`를 갖고 `abstain`을 포함합니다.
+5. 다음 행동의 선택은 `jev_step(provider="live")`에 맡깁니다. 탐색·클릭·입력·선택·제출·스크롤을 직접 선택해 우회하지 않습니다. 별도의 완료·위험·계속 여부는 `jev_system_one`의 Choice/Score/Noul로 판단합니다.
+6. 반환된 유효한 ID의 원래 후보만 실행합니다. 중단 응답, 낮은 신뢰도, 알 수 없는 ID, 시간 초과, 인증 오류에서는 실행하지 않습니다. Mock이나 다른 모델로 대체하지 않습니다.
+7. Aside로 독립적인 실행 결과를 확인합니다. 화면이 바뀌면 새 관찰과 후보로 다시 결정합니다. 이전 선택·ref·확률을 새 화면에 재사용하지 않습니다. 루프 중단·실행 미확인 상태에서는 화면을 확인하고 수동으로 재개합니다.
+8. 사용자 승인·결제·개인정보·도구 권한 경계는 그대로 지킵니다. Jev의 선택은 승인 대신 사용할 수 없습니다.
 
-Aside’s chat model must not free-form invent the next click. On every browse / Ultrabrowse / computer-use step:
-
-1. Observe with Aside.
-2. Build a full candidate table (tool + args) yourself; always include `abstain`.
-3. Call Jev via the absolute CLI from AGENTS.md (`aside-jev choose` or `aside-jev system-one`).
-4. Execute only the returned id with Aside.
-5. Verify independently (DOM/API).
-
-## CLI
-
-```bash
-# absolute path is written into ~/.aside/u/0/AGENTS.md by install.sh
-aside-jev choose --goal '…' --candidates cands.json --observation obs.json --provider live
-aside-jev system-one --state state.json --questions questions.json
-aside-jev serve   # MCP for Cursor / external agents
-```
-
-Live needs `TYPESAFE_API_KEY` (or `~/.config/typesafe/api.env`). Mock needs none.
-
-## MCP tools
-
-`jev_system_one` · `jev_choose` · `jev_validate` · `jev_step`
-
-## Do not
-
-- Skip Jev and invent CSS/xpath/coordinates for the next action
-- Treat this as a Cua driver — runtime is Aside; model is Jev
+이 스킬은 에이전트 지침이며 Aside 네이티브 도구를 전역으로 가로채는 런타임 훅이 아닙니다. `serve --extension` 경로에서 ON·Live·신뢰도 정책이 검사됩니다. 모든 직접 도구 호출의 강제를 입증했다고 보고하지 않습니다.

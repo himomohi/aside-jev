@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Aside Jev"
+  },
+  "extensionDescription": {
+    "message": "새 Aside 작업의 Jev 결정 지침을 ON/OFF하고 로컬 연결 상태를 확인합니다."
+  },
+  "actionTitle": {
+    "message": "Aside Jev · 판단 지침"
+  }
+}

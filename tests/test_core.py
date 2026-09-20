@@ -43,3 +43,22 @@ def test_classify():
     assert classify("bad", "tok", steps=1, max_steps=3) == "refuted"
     assert classify(None, "tok", steps=3, max_steps=3) == "budget_exhausted"
     assert classify(None, "tok", steps=1, max_steps=3) == "unknown"
+
+
+@pytest.mark.parametrize("raw", [
+    [], [{"id": "a"}, {"id": "a"}], [{"id": 1}], [{"id": ""}],
+    [{"id": "a", "arguments": []}], [{"id": "abstain", "tool": "click"}],
+    [{"id": "abstain", "arguments": {"ref": "1"}}],
+    [{"id": "a", "arguments": {"x": float("nan")}}],
+])
+def test_ambiguous_candidate_tables_are_rejected(raw):
+    from aside_jev.core import parse_candidates
+    with pytest.raises(ValueError):
+        parse_candidates(raw)
+
+
+def test_candidate_parser_adds_safe_abstain_and_preserves_payload():
+    from aside_jev.core import parse_candidates
+    candidates = parse_candidates([{"id": "a", "description": "A", "tool": "click", "arguments": {"ref": "1"}}])
+    assert candidates[0].arguments == {"ref": "1"}
+    assert candidates[-1] == build_abstain()

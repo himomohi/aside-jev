@@ -1,6 +1,6 @@
 [project]
 name = "aside-jev"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bounded TypeSafe Jev decisions for Aside browser agents — pick one app-owned action ID, never invent clicks."
 readme = "README.md"
 requires-python = ">=3.11"

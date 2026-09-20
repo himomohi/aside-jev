@@ -1,0 +1,18 @@
+{
+  "measuredOn": "2026-09-20",
+  "source": "scripts/benchmark_latency.py",
+  "report": "docs/VALIDATION.md",
+  "scope": "Same Jev SDK, localhost transport overhead",
+  "sampleCount": 30,
+  "baseline": {
+    "p50Ms": 1.157,
+    "p95Ms": 1.695,
+    "tcpConnections": 30
+  },
+  "pooled": {
+    "p50Ms": 0.54,
+    "p95Ms": 0.747,
+    "tcpConnections": 1
+  },
+  "includesModelInference": false
+}

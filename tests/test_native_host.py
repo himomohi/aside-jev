@@ -1,0 +1,122 @@
+import io
+import json
+import os
+from pathlib import Path
+import struct
+import subprocess
+
+import pytest
+
+from aside_jev import extension_control as control, native_host
+
+EXTENSION_ID = "a" * 32
+ORIGIN = f"chrome-extension://{EXTENSION_ID}/"
+
+
+@pytest.fixture(autouse=True)
+def isolated_global_rules(tmp_path, monkeypatch):
+    monkeypatch.setattr(control, "_legacy_rule_paths", lambda: {"user_home": tmp_path / "global-AGENTS.md"})
+
+
+@pytest.fixture
+def installed(tmp_path, monkeypatch):
+    profile = tmp_path / "profile"
+    profile.mkdir()
+    monkeypatch.setenv("ASIDE_JEV_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("TYPESAFE_API_KEY", "native-test-private")
+    control.setup_installation(extension_id=EXTENSION_ID, profile_dir=profile, native_host_dir=tmp_path / "hosts", apply=True)
+    return profile
+
+
+def frame(value):
+    payload = json.dumps(value).encode()
+    return struct.pack("=I", len(payload)) + payload
+
+
+def invoke(value, *, origin=ORIGIN):
+    destination = io.BytesIO()
+    assert native_host.serve(origin, stdin=io.BytesIO(frame(value)), stdout=destination) == 0
+    data = destination.getvalue()
+    length = struct.unpack("=I", data[:4])[0]
+    assert len(data[4:]) == length
+    return json.loads(data[4:])
+
+
+def test_native_status_and_toggle_contract(installed):
+    status = invoke({"op": "status"})
+    assert status["ok"] is True
+    assert status["status"]["enabled"] is False
+    assert "native-test-private" not in json.dumps(status)
+    assert invoke({"op": "set_enabled", "enabled": True})["status"]["instructions_applied"]
+    assert invoke({"op": "configure", "min_confidence": 0.9, "timeout_s": 30})["status"]["min_confidence"] == 0.9
+    assert invoke({"op": "set_enabled", "enabled": False})["status"]["enabled"] is False
+
+
+def test_wrong_origin_has_no_profile_effect(installed):
+    result = invoke({"op": "set_enabled", "enabled": True}, origin="chrome-extension://" + "b" * 32 + "/")
+    assert result["error"]["code"] == "origin"
+    assert not (installed / "AGENTS.md").exists()
+
+
+@pytest.mark.parametrize("message", [
+    {"op": "status", "profile_dir": "/tmp/other"},
+    {"op": "set_enabled", "enabled": "true"},
+    {"op": "configure", "model": "other"},
+    {"op": "configure", "min_confidence": None},
+    {"op": "configure", "timeout_s": float("nan")},
+    {"op": "run", "command": "arbitrary"},
+])
+def test_unrecognized_operations_and_fields_are_rejected(installed, message):
+    assert invoke(message)["ok"] is False
+    assert not (installed / "AGENTS.md").exists()
+
+
+@pytest.mark.parametrize("payload", [b"x", struct.pack("=I", 0), struct.pack("=I", 131073), struct.pack("=I", 4) + b"{}", struct.pack("=I", 1) + b"x"])
+def test_corrupt_and_oversize_frames_return_framed_errors(payload):
+    destination = io.BytesIO()
+    native_host.serve(ORIGIN, stdin=io.BytesIO(payload), stdout=destination)
+    result = native_host.read_message(io.BytesIO(destination.getvalue()))
+    assert result["ok"] is False
+
+
+def test_duplicate_fields_are_rejected():
+    payload = b'{"op":"status","op":"set_enabled"}'
+    with pytest.raises(control.ControlError):
+        native_host.read_message(io.BytesIO(struct.pack("=I", len(payload)) + payload))
+
+
+def test_exactly_one_request_is_handled_per_process(installed):
+    source = io.BytesIO(frame({"op": "status"}) + frame({"op": "set_enabled", "enabled": True}))
+    output = io.BytesIO()
+    native_host.serve(ORIGIN, stdin=source, stdout=output)
+    assert native_host.read_message(io.BytesIO(output.getvalue()))["status"]["enabled"] is False
+    assert source.read()
+    assert not (installed / "AGENTS.md").exists()
+
+
+def test_unexpected_error_details_are_not_returned(installed, monkeypatch):
+    def fail():
+        raise RuntimeError("sensitive provider body native-test-private")
+    monkeypatch.setattr(control, "get_status", fail)
+    result = invoke({"op": "status"})
+    assert result["error"]["code"] == "internal"
+    assert "sensitive" not in json.dumps(result)
+    assert "native-test-private" not in json.dumps(result)
+
+
+def test_generated_native_wrapper_runs_cli_with_one_framed_response(installed, tmp_path):
+    environment = dict(os.environ)
+    environment["HOME"] = str(tmp_path)
+    wrapper = Path(environment["ASIDE_JEV_CONFIG_DIR"]) / "native-host"
+    result = subprocess.run(
+        [str(wrapper), ORIGIN], input=frame({"op": "status"}),
+        capture_output=True, env=environment, cwd=tmp_path, timeout=10, check=True,
+    )
+    response = native_host.read_message(io.BytesIO(result.stdout))
+    assert response["ok"] is True
+    assert response["status"]["enabled"] is False
+    assert response["status"]["enforcement"] == "instructions_only"
+    assert response["status"]["legacy_global_rules"] == []
+    assert not result.stderr
+    assert b"native-test-private" not in result.stdout
+    assert not (installed / "AGENTS.md").exists()

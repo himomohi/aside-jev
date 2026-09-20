@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Aside Jev"
+  },
+  "extensionDescription": {
+    "message": "Toggle Jev decision instructions for new Aside tasks and check the local connection."
+  },
+  "actionTitle": {
+    "message": "Aside Jev · Decision instructions"
+  }
+}

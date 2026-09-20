@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title data-i18n="Aside Jev · Decision workspace">Aside Jev · Decision workspace</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 40 40&#x27;%3E%3Crect width=&#x27;40&#x27; height=&#x27;40&#x27; rx=&#x27;10&#x27; fill=&#x27;%23273d33&#x27;/%3E%3Cpath d=&#x27;M11 26l9-15 9 15M15 21h10&#x27; fill=&#x27;none&#x27; stroke=&#x27;%23d9f2aa&#x27; stroke-width=&#x27;3&#x27;/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/app.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#workspace" data-i18n="Skip to workspace">Skip to workspace</a>
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Aside Jev home" data-i18n-aria-label="Aside Jev home"><span class="brand-mark">a<span>↗</span></span><span>aside<span class="brand-divider">/</span>jev</span></a>
+      <div class="workspace-label">
+        <span class="dot"></span> <span data-i18n="LOCAL WORKSPACE">LOCAL WORKSPACE</span>
+      </div>
+      <nav aria-label="Main navigation" data-i18n-aria-label="Main navigation">
+        <a href="#workspace" class="nav-item active"><span aria-hidden="true">⌘</span><span class="i18n-text" data-i18n="Decision workspace">Decision workspace</span><span class="nav-index">01</span></a>
+        <a href="#history-section" class="nav-item"><span aria-hidden="true">↺</span><span class="i18n-text" data-i18n="Run history">Run history</span><span id="nav-count" class="nav-index">0</span></a>
+        <button class="nav-item" id="nav-settings">
+          <span aria-hidden="true">⚙</span><span class="i18n-text" data-i18n="Inputs &amp; settings">Inputs &amp; settings</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="connection">
+          <span class="dot" id="connection-dot"></span><span id="connection-label" data-i18n="Checking connection">Checking connection</span>
+        </div>
+        <p><span class="i18n-text" data-i18n="Jev decides.">Jev decides.</span><br><span class="i18n-text" data-i18n="Aside executes.">Aside executes.</span></p>
+        <span class="version" id="version">ASIDE JEV</span>
+      </div>
+    </aside>
+    <div class="page">
+      <header class="topbar">
+        <div>
+          <span class="muted" data-i18n="Workspace">Workspace</span><span class="crumb">/</span><span data-i18n="New decision">New decision</span>
+        </div>
+        <div class="topbar-actions"><label class="language-picker"><span class="sr-only" data-i18n="Language">Language</span><select id="language-select" aria-label="Language" data-i18n-aria-label="Language"><option value="en" lang="en">English</option><option value="ko" lang="ko">한국어</option></select></label><span class="local-badge"><span class="dot"></span><span class="i18n-text" data-i18n="On this computer only">On this computer only</span></span></div>
+      </header>
+      <main id="workspace" tabindex="-1">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow"><span data-i18n="DECISION WORKSPACE">DECISION WORKSPACE</span></div>
+            <h1 data-i18n="Make the next move clear.">Make the next move clear.</h1>
+            <p data-i18n="Choose one prepared action from the current observation.">Choose one prepared action from the current observation.</p>
+          </div>
+          <button class="button secondary" id="settings-button" aria-label="Inputs &amp; settings" data-i18n-aria-label="Inputs &amp; settings">
+            <span aria-hidden="true">⚙</span><span class="i18n-text" data-i18n="Inputs &amp; settings">Inputs &amp; settings</span></button>
+        </div>
+        <div id="app-error" class="notice error" role="alert" hidden></div>
+        <div class="workspace-grid">
+          <section class="decision-panel" aria-labelledby="goal-heading">
+            <div class="section-label">
+              <span class="section-number">01</span>
+              <h2 id="goal-heading" data-i18n="What is your goal?">What is your goal?</h2>
+              <span class="small-tag" data-i18n="Goal">Goal</span>
+            </div>
+            <form id="decision-form" novalidate>
+              <label class="sr-only" for="goal" data-i18n="Decision goal">Decision goal</label>
+              <textarea id="goal" name="goal" rows="2" maxlength="4000" required placeholder="e.g. Choose the next action to fill the empty verification field." data-i18n-placeholder="e.g. Choose the next action to fill the empty verification field.">Choose the next action to fill the empty verification field.</textarea>
+              <div class="input-footer">
+                <span data-i18n="A specific goal makes the decision clearer.">A specific goal makes the decision clearer.</span><span class="shortcut">⌘ / Ctrl + Enter</span>
+              </div>
+              <div class="observation-summary">
+                <div class="observation-icon" aria-hidden="true">▤</div>
+                <div class="observation-text">
+                  <strong id="observation-title" data-i18n="Form input example">Form input example</strong><span id="observation-meta" data-i18n="Preparing observation">Preparing observation</span>
+                </div>
+                <button class="text-button" type="button" id="edit-input" data-i18n="Edit inputs ↗">Edit inputs ↗</button>
+              </div>
+              <div class="candidates-heading">
+                <h3><span class="i18n-text" data-i18n="Available actions">Available actions</span><span id="candidate-count">3</span></h3>
+                <span data-i18n="Prepared candidates only">Prepared candidates only</span>
+              </div>
+              <ol id="candidate-list" class="candidate-list"></ol>
+              <div class="run-controls">
+                <fieldset class="mode-picker">
+                  <legend class="sr-only" data-i18n="Decision mode">Decision mode</legend>
+                  <label><input type="radio" name="provider" value="mock" checked><span data-i18n="Local demo">Local demo</span></label><label><input type="radio" name="provider" value="live" id="live-mode"><span>Jev Live</span></label>
+                </fieldset>
+                <button id="run-button" class="button primary" type="submit">
+                  <span id="run-label" data-i18n="Run decision">Run decision</span><span id="run-arrow" aria-hidden="true">↗</span>
+                </button>
+              </div>
+              <p id="mode-note" class="mode-note" data-i18n="The local demo selects the first candidate. No API calls or browser actions.">The local demo selects the first candidate. No API calls or browser actions.</p>
+            </form>
+          </section>
+          <section class="result-panel" aria-labelledby="result-heading" aria-busy="false" id="result-panel">
+            <div class="result-header">
+              <div class="section-label">
+                <span class="section-number">02</span>
+                <h2 id="result-heading" data-i18n="Decision result">Decision result</h2>
+              </div>
+              <span class="status-badge" id="result-status" data-i18n="Ready">Ready</span>
+            </div>
+            <div id="empty-result" class="empty-result">
+              <div class="decision-orbit" aria-hidden="true">
+                <span>↗</span><i></i><b></b>
+              </div>
+              <h3 data-i18n="Ready for your next move">Ready for your next move</h3>
+              <p><span class="i18n-text" data-i18n="Review your goal and candidates, then run a decision.">Review your goal and candidates, then run a decision.</span><br><span class="i18n-text" data-i18n="Probabilities and timing help you review the result.">Probabilities and timing help you review the result.</span></p>
+              <div class="mini-flow">
+                <span data-i18n="Observe">Observe</span><span>→</span><span data-i18n="Choose">Choose</span><span>→</span><span data-i18n="Review">Review</span>
+              </div>
+            </div>
+            <div id="pending-result" class="pending-result" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <h3 data-i18n="Evaluating candidates">Evaluating candidates</h3>
+              <strong id="elapsed">0.0 s</strong>
+              <p data-i18n="The result will appear as soon as it arrives.">The result will appear as soon as it arrives.</p>
+            </div>
+            <div id="result-content" hidden>
+              <div class="decision-outcome">
+                <span class="outcome-label" id="outcome-label" data-i18n="Selected action">Selected action</span>
+                <h3 id="choice-name"></h3>
+                <p id="choice-description"></p>
+                <span class="result-mode" id="result-mode"></span>
+              </div>
+              <div class="metrics">
+                <div><span data-i18n="Confidence">Confidence</span><strong id="confidence">—</strong></div>
+                <div>
+                  <span data-i18n="Decision time">Decision time</span><strong id="decision-time">—</strong>
+                </div>
+                <div>
+                  <span data-i18n="Round trip">Round trip</span><strong id="roundtrip-time">—</strong>
+                </div>
+              </div>
+              <div class="probabilities">
+                <h4 data-i18n="Candidate probabilities">Candidate probabilities</h4>
+                <div id="probability-list"></div>
+              </div>
+              <details class="technical-details">
+                <summary data-i18n="Timing &amp; action payload">Timing &amp; action payload</summary>
+                <dl id="timing-details"></dl>
+                <pre id="payload"></pre>
+                <button id="copy-payload" class="button secondary compact" data-i18n="Copy action payload">Copy action payload</button>
+              </details>
+              <p class="result-footnote" id="result-footnote" data-i18n="Decision only. No browser action was executed.">Decision only. No browser action was executed.</p>
+            </div>
+            <div id="result-error" class="result-error" role="alert" hidden>
+              <span class="error-symbol" aria-hidden="true">!</span>
+              <h3 data-i18n="Could not complete the decision">Could not complete the decision</h3>
+              <p id="error-message"></p>
+              <button class="button secondary" id="retry-button" data-i18n="Try again">Try again</button>
+            </div>
+          </section>
+        </div>
+        <section id="history-section" class="history-section" aria-labelledby="history-heading">
+          <div class="history-heading">
+            <div>
+              <h2 id="history-heading"><span class="i18n-text" data-i18n="This session’s runs">This session’s runs</span><span id="history-count">0</span>
+              </h2>
+              <p data-i18n="Only the latest 20 results are kept in this page.">Only the latest 20 results are kept in this page.</p>
+            </div>
+            <button class="text-button" id="clear-history" disabled data-i18n="Clear history">Clear history</button>
+          </div>
+          <div id="history-empty" class="history-empty" data-i18n="Your chosen actions and timing will appear here after the first run.">Your chosen actions and timing will appear here after the first run.</div>
+          <div class="table-scroll" id="history-table-wrap" hidden>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col" data-i18n="Run">Run</th>
+                  <th scope="col" data-i18n="Chosen action">Chosen action</th>
+                  <th scope="col" data-i18n="Mode">Mode</th>
+                  <th scope="col" data-i18n="Confidence">Confidence</th>
+                  <th scope="col" data-i18n="Decision time">Decision time</th>
+                  <th scope="col" data-i18n="Result">Result</th>
+                </tr>
+              </thead>
+              <tbody id="history-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <footer class="page-footer">
+          <span data-i18n="Decisions by Jev. Control stays with you.">Decisions by Jev. Control stays with you.</span><span>Choice · Score · Noul</span>
+        </footer>
+      </main>
+    </div>
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <form id="settings-form" novalidate>
+        <div class="dialog-header">
+          <div>
+            <div class="eyebrow"><span data-i18n="WORKSPACE SETTINGS">WORKSPACE SETTINGS</span></div>
+            <h2 id="settings-title" data-i18n="Inputs &amp; settings">Inputs &amp; settings</h2>
+          </div>
+          <button type="button" id="close-settings" class="icon-button" aria-label="Close settings" data-i18n-aria-label="Close settings">
+            ×
+          </button>
+        </div>
+        <div class="dialog-body">
+          <p class="settings-note" data-i18n="Apply your changes, then run from the workspace. Inputs are not saved to disk.">Apply your changes, then run from the workspace. Inputs are not saved to disk.</p>
+          <div id="settings-error" class="notice error" role="alert" hidden></div>
+          <div class="field-heading">
+            <label for="observation-input" data-i18n="Observation">Observation</label><button type="button" id="load-example" class="text-button" data-i18n="Load form example">Load form example</button>
+          </div>
+          <p id="observation-hint" class="field-hint" data-i18n="Describe the current page as a JSON object or JSON string.">Describe the current page as a JSON object or JSON string.</p>
+          <textarea id="observation-input" class="code-editor" rows="7" spellcheck="false" aria-describedby="observation-hint" required></textarea>
+          <label for="candidates-input" data-i18n="Action candidates">Action candidates</label>
+          <p id="candidates-hint" class="field-hint" data-i18n="A JSON array with id, description, tool and arguments. An abstain candidate is added automatically.">A JSON array with id, description, tool and arguments. An abstain candidate is added automatically.</p>
+          <textarea id="candidates-input" class="code-editor" rows="10" spellcheck="false" aria-describedby="candidates-hint" required></textarea>
+          <div class="settings-grid">
+            <div>
+              <label for="model-input" data-i18n="Jev model">Jev model</label><input id="model-input" value="jev-latest" maxlength="100" required>
+            </div>
+            <div>
+              <label for="threshold-input" data-i18n="Minimum confidence">Minimum confidence</label><input id="threshold-input" type="number" min="0" max="1" step="0.05" value="0.7" required>
+            </div>
+            <div>
+              <label for="timeout-input" data-i18n="HTTP timeout per phase (s)">HTTP timeout per phase (s)</label><input id="timeout-input" type="number" min="1" max="60" step="1" value="15" required>
+            </div>
+          </div>
+          <p class="field-hint" data-i18n="Low-confidence choices are stopped. Live sends inputs to TypeSafe and may use your account quota.">Low-confidence choices are stopped. Live sends inputs to TypeSafe and may use your account quota.</p>
+          <div class="key-status">
+            <span class="dot"></span><span id="key-status" data-i18n="Checking API key status">Checking API key status</span>
+          </div>
+          <p class="field-hint" data-i18n="The key is read from the server environment. This page never asks for or displays it.">The key is read from the server environment. This page never asks for or displays it.</p>
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="button secondary" id="cancel-settings" data-i18n="Cancel">Cancel</button><button type="submit" class="button primary"><span class="i18n-text" data-i18n="Apply changes">Apply changes</span><span aria-hidden="true">↗</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>
