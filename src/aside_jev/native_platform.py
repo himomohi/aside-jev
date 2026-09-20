@@ -191,6 +191,12 @@ def cmd_quote_literal(value: str) -> str:
     return '"' + value.replace("%", "%%") + '"'
 
 
+def validate_windows_launcher_path(path: str | Path) -> None:
+    # cmd가 래퍼에 진입하기 전에 경로의 %변수%를 확장하므로 내부 이스케이프로 보호할 수 없다.
+    if "%" in os.fspath(path):
+        raise ControlError("launcher_path", "Windows native launcher paths cannot contain %. Choose a local --config-dir without %.")
+
+
 def windows_launcher(python: str, *, native: bool) -> bytes:
     entry = "native-entry.py" if native else "mcp-entry.py"
     argument = ' "%~1"' if native else ""

@@ -177,7 +177,7 @@ def test_registry_external_change_after_preview_is_preserved():
 def test_windows_setup_preview_and_apply_use_explicit_registry_and_python_mcp(tmp_path, monkeypatch, fake_windows):
     profile = tmp_path / "사용자 & account"
     profile.mkdir()
-    root = tmp_path / "설정 %TEMP% ! & ^ (test)"
+    root = tmp_path / "설정 ! & ^ (test)"
     monkeypatch.setenv("ASIDE_JEV_CONFIG_DIR", str(root))
     args = dict(extension_id=EXTENSION_ID, profile_dir=profile, native_host_dir=root / "hosts", windows_registry_key=KEY)
     plan = control.setup_installation(**args)
@@ -198,7 +198,7 @@ def test_windows_setup_preview_and_apply_use_explicit_registry_and_python_mcp(tm
 def test_generated_windows_python_entry_preserves_framing_and_origin(tmp_path, monkeypatch, fake_windows):
     profile = tmp_path / "profile"
     profile.mkdir()
-    root = tmp_path / "고정 경로 & %PATH%"
+    root = tmp_path / "고정 경로 &"
     monkeypatch.setenv("ASIDE_JEV_CONFIG_DIR", str(root))
     control.setup_installation(extension_id=EXTENSION_ID, profile_dir=profile, native_host_dir=root / "hosts",
                                windows_registry_key=KEY, apply=True)
@@ -301,6 +301,21 @@ def test_windows_setup_requires_registry_even_in_preview(tmp_path, fake_windows)
     assert error.value.code == "registry_target"
 
 
+@pytest.mark.parametrize("apply", [False, True])
+@pytest.mark.parametrize("folder", ["%PATH%", "literal%percent", "%UNKNOWN_TEST_VAR%"])
+def test_windows_launcher_percent_path_is_rejected_before_any_write(tmp_path, fake_windows, apply, folder):
+    profile = tmp_path / "profile"
+    profile.mkdir()
+    root = tmp_path / folder / "config"
+    hosts = tmp_path / "hosts"
+    with pytest.raises(control.ControlError) as error:
+        control.setup_installation(extension_id=EXTENSION_ID, profile_dir=profile, native_host_dir=hosts,
+                                   root=root, windows_registry_key=KEY, apply=apply)
+    assert error.value.code == "launcher_path"
+    assert "--config-dir" in str(error.value)
+    assert not root.parent.exists() and not hosts.exists() and not fake_windows.data
+
+
 @pytest.mark.parametrize("path", [r"\\server\share\profile", r"\\?\C:\profile", r"C:\profile\file:secret",
                                   r"C:\profile\NUL.txt", "C:\\profile\\trailing. ", r"relative\profile"])
 def test_windows_paths_reject_network_devices_and_aliases(path):
@@ -338,7 +353,7 @@ def test_reparse_attribute_is_rejected_independently_of_symlink_mode(tmp_path, m
 def test_real_windows_safe_files_lock_and_framed_wrapper(tmp_path, monkeypatch, fake_windows):
     profile = tmp_path / "profile"
     profile.mkdir()
-    root = tmp_path / "유니코드 %PATH% ! & ^ (test)"
+    root = tmp_path / "유니코드 ! & ^ (test)"
     monkeypatch.setenv("ASIDE_JEV_CONFIG_DIR", str(root))
     control.setup_installation(extension_id=EXTENSION_ID, profile_dir=profile, native_host_dir=root / "hosts",
                                windows_registry_key=KEY, apply=True)
@@ -349,7 +364,9 @@ def test_real_windows_safe_files_lock_and_framed_wrapper(tmp_path, monkeypatch, 
     framed = io.BytesIO()
     native_host.write_message(framed, {"op": "status"})
     result = subprocess.run([str(root / "native-host.cmd"), ORIGIN, "--parent-window=0"],
-                            input=framed.getvalue(), capture_output=True, timeout=15, check=True)
+                            input=framed.getvalue(), capture_output=True, timeout=15, check=False)
+    # 임시 fixture 호스트의 실패 원인을 다음 Windows CI에서도 확인할 수 있게 한다.
+    assert result.returncode == 0, result.stderr.decode("utf-8", errors="replace")[-2000:]
     assert native_host.read_message(io.BytesIO(result.stdout))["status"]["enabled"] is False
     outside = tmp_path / "outside"
     outside.write_text("untouched")

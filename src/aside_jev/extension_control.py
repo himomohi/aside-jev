@@ -548,6 +548,7 @@ def setup_installation(
     platform = native_platform.platform_name()
     windows = platform == "windows"
     if windows:
+        native_platform.validate_windows_launcher_path(target_root)
         windows_registry_key = native_registry.validate_registry_key(windows_registry_key, HOST_NAME)
     elif windows_registry_key is not None:
         raise ControlError("registry_target", "Windows 레지스트리 등록은 Windows에서만 지원합니다.")

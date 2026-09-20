@@ -46,7 +46,7 @@ HKCU 또는 HKLM에 Aside의 `NativeMessagingHosts` 부모가 **이미 있을 �
 | 계정 탐색 | 기존 `~/.aside/u/<숫자>/settings.json` | 기존 `%USERPROFILE%\.aside\u\<숫자>\settings.json` |
 | Native host 등록 | 기존 Aside 데이터 폴더 → `NativeMessagingHosts` | 명시한 HKCU 호스트 키 → 설정 폴더의 manifest |
 
-계정을 찾지 못하면 직접 경로를 지정할 수 있습니다. `ASIDE_JEV_INSTALL_DIR`은 실행 환경 위치, `--config-dir` 또는 `ASIDE_JEV_CONFIG_DIR`은 설정 위치를 바꿉니다. 연결 파일에는 실제 로컬 경로를 사용하세요. 심볼릭 링크·Windows junction·네트워크·장치 경로는 지원하지 않습니다.
+계정을 찾지 못하면 직접 경로를 지정할 수 있습니다. `ASIDE_JEV_INSTALL_DIR`은 실행 환경 위치, `--config-dir` 또는 `ASIDE_JEV_CONFIG_DIR`은 설정 위치를 바꿉니다. 연결 파일에는 실제 로컬 경로를 사용하세요. 심볼릭 링크·Windows junction·네트워크·장치 경로는 지원하지 않습니다. Windows 설정 폴더에는 `%`를 사용할 수 없습니다. `.cmd` 호스트 실행 전에 Windows가 이를 확장하므로 `--config-dir`로 다른 폴더를 선택하세요.
 
 ## API 키와 설정
 

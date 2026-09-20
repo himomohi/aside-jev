@@ -46,7 +46,7 @@ Registration writes only the specified host under **HKCU**, without administrato
 | Account detection | Existing `~/.aside/u/<number>/settings.json` | Existing `%USERPROFILE%\.aside\u\<number>\settings.json` |
 | Native host registration | Existing Aside data directory → `NativeMessagingHosts` | Explicit HKCU host key → manifest in configuration directory |
 
-Custom account paths are accepted when auto-detection finds no account. `ASIDE_JEV_INSTALL_DIR` overrides the runtime location; `--config-dir` or `ASIDE_JEV_CONFIG_DIR` overrides configuration. Use real local paths; symbolic links, Windows junctions, network paths and device paths are not supported for connection files.
+Custom account paths are accepted when auto-detection finds no account. `ASIDE_JEV_INSTALL_DIR` overrides the runtime location; `--config-dir` or `ASIDE_JEV_CONFIG_DIR` overrides configuration. Use real local paths; symbolic links, Windows junctions, network paths and device paths are not supported for connection files. On Windows, the configuration folder must not contain `%`, because Windows expands it before launching a `.cmd` native host; choose another folder with `--config-dir`.
 
 ## API key and settings
 
