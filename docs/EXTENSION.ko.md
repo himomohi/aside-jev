@@ -35,7 +35,7 @@ HKCU 또는 HKLM에 Aside의 `NativeMessagingHosts` 부모가 **이미 있을 �
 
 관리자 권한 상승 없이 지정한 호스트만 **HKCU**에 등록합니다. 기존 등록 충돌을 감지하고 파일을 백업하며, 등록 실패 시 파일 변경도 원복합니다. Windows 실행기는 바이너리 메시지와 브라우저의 `--parent-window` 인자를 처리합니다. 파일 접근 권한은 Windows 상위 폴더의 ACL을 상속합니다.
 
-**검증 범위:** macOS 초기 설치와 임시 계정 통합은 로컬에서 실행했습니다. Windows 분기와 레지스트리 원복은 자동 테스트했지만 실제 Windows PC의 `.cmd`·Win32 핸들·Aside 확장과 호스트 연결은 아직 실행 검증하지 않았습니다. [검증 기록](VALIDATION.ko.md)을 참고하세요.
+**검증 범위:** [Windows·macOS CI를 통과](https://github.com/himomohi/aside-jev/actions/runs/35501878103)했습니다. 실제 실행기·설치·한국어 안내·설정 보존·Native 메시지 응답을 확인했고, Windows에서는 격리된 테스트 HKCU 호스트의 등록과 제거도 확인했습니다. 가상 계정으로 수행한 검사이며 실제 Aside 확장과 호스트 연결 및 Windows 레지스트리 조회 키는 미검증입니다. [검증 기록](VALIDATION.ko.md)을 참고하세요.
 
 ## 설치 위치
 

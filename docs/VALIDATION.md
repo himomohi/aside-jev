@@ -2,7 +2,7 @@
 
 # Validation record
 
-Date: 2026-09-20. Source preview 0.2.0. These checks were performed locally; publishing the source does not constitute a packaged release.
+Date: 2026-09-20. Source preview 0.2.0. Local checks and GitHub-hosted platform checks are distinguished below; publishing the source does not constitute a packaged release.
 
 ## Product checks
 
@@ -66,10 +66,12 @@ The popup HTML preview covered an unconfirmed host, disabled toggle, and reconne
 ## Guided installation on Windows and macOS
 
 - Full local regression after installer changes: **215 Python tests passed, 1 Windows-only integration test skipped; 20 JavaScript tests passed**. Translation parity caught one missing mirrored label during development; both dictionaries were synchronized and the JavaScript suite passed afterward.
+- Final [GitHub-hosted verification](https://github.com/himomohi/aside-jev/actions/runs/35501878103), source `625898b`: **Windows 222 Python tests passed; macOS 221 passed and 1 Windows-only test skipped; each platform passed 20 JavaScript tests**, wheel building, and 115 local documentation links. Both bootstrap runs used Python 3.11.9 and verified nine packaged extension assets, English installation, Korean repeated setup, preserved settings, default OFF, and framed native responses. Windows additionally verified an isolated HKCU registration and its cleanup. Temporary files were removed on both platforms.
+- Windows CI exposed a JSON-escaped path assertion, `%` expansion in launcher paths, an unavailable `Get-FileHash` command, and a non-UTF-8 output stream under isolated Python. Fixes compare path objects, reject unsupported launcher paths, use built-in .NET hashing/ZIP APIs, and explicitly select UTF-8. The final run exercises these corrected paths.
 - On macOS, the actual bootstrap ran in a temporary directory with `uv` excluded from PATH. It downloaded and SHA-256-verified uv 0.12.17, prepared Python 3.11.16, and installed the packaged app. A subsequent install used the locked dependency export with hash verification and Korean setup output.
 - Synthetic account paths included spaces and Korean characters. Account settings and other MCP entries were preserved; setup cancellation, previews, repeated setup, key secrecy, settings races, conflicting ownership, and rollback were tested. No real user account files were changed.
 - The installed native-host executable accepted the fixed extension origin and returned a correctly framed status response with MCP configuration recognized and OFF retained. This proves the local process contract, not a browser-launched connection.
-- Windows registry ownership/view conflicts and failure recovery use a fake registry. Generated Windows Python entry points were exercised as real subprocesses on macOS. Real Windows file handles, batch execution, ACL behavior, and Aside browser registration remain unverified until an actual Windows run.
+- Windows regression tests exercised real Win32 file handles, locks, and native `.cmd` execution with Korean text, spaces, and `! & ^ ()` in the path. `%` in the native launcher path is rejected before writing; Windows would otherwise expand it before entering the wrapper. Registry ownership/view conflicts and failure recovery use a fake registry. Tests do not establish arbitrary Windows ACL configurations or actual Aside browser registration.
 - Installer-owned code and extension locale assets are included in the wheel. The extension public key produces the same ID independent of folder location. No private signing key is included.
 
 ## Remaining boundaries
@@ -80,4 +82,4 @@ The popup HTML preview covered an unconfirmed host, disabled toggle, and reconne
 - Task-specific action rules and completion conditions are required. General browser-agent capability is not established.
 - OFF/timeout does not undo actions already sent. Inspect `unconfirmed` state before manually resuming.
 - Sanitization is an auxiliary size/credential-pattern filter, not universal personal-data detection.
-- These local checks do not establish remote CI results or a published GitHub release.
+- CI uses synthetic accounts. It does not establish actual Aside browser connectivity or a published GitHub release.

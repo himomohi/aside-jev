@@ -35,7 +35,7 @@ Setup proposes `Software\Aside\NativeMessagingHosts\com.aside_jev.control` **onl
 
 Registration writes only the specified host under **HKCU**, without administrator elevation. The installer detects conflicting registrations and backs up files; registration failure rolls back the file changes. Windows wrappers support native binary framing and browser `--parent-window` arguments. File access inherits the parent directory's Windows ACL.
 
-**Verification boundary:** macOS bootstrap and temporary-profile integration were exercised locally. Windows code paths and registry recovery have automated tests, but real Windows `.cmd`, Win32 handles, and an Aside extension-to-host connection have not been exercised on a Windows PC. See [validation](VALIDATION.md).
+**Verification boundary:** [Windows and macOS CI passed](https://github.com/himomohi/aside-jev/actions/runs/35501878103), including actual launchers, installation, Korean setup output, settings preservation, and native message framing. Windows also registered and removed an isolated test HKCU host. These checks use synthetic accounts; an actual Aside extension-to-host connection and its Windows registry lookup key remain unverified. See [validation](VALIDATION.md).
 
 ## Locations
 
