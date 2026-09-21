@@ -48,3 +48,12 @@ pythonVersion = "3.11"
 typeCheckingMode = "basic"
 venvPath = "."
 venv = ".venv"
+
+[tool.hatch.build.targets.sdist]
+# 개발 도구의 중첩 캐시·브라우저 바이너리가 배포본에 섞이지 않도록 범위를 고정한다.
+include = [
+  "/src", "/extension", "/scripts", "/tests", "/docs", "/Release",
+  "/video/src", "/video/*.json", "/video/*.ts", "/video/*.mjs", "/video/README*",
+  "/README*", "/CHANGELOG*", "/Install*", "/LICENSE", "/pyproject.toml", "/uv.lock",
+]
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/node_modules/**", "**/.env*"]

@@ -31,8 +31,21 @@
 
 **Aside Jev**는 [Aside](https://aside.com)의 REPL과 [TypeSafe Jev](https://docs.typesafe.ai/introduction)를 연결하는 브라우저 작업 도구입니다. 툴바 팝업의 ON/OFF, 지속 REPL 세션, 정해진 후보 안에서의 선택을 하나의 흐름으로 연결합니다.
 
-> **현재: 0.2.0 소스 프리뷰 · 릴리즈 전**<br />
+> **현재 릴리즈: 0.2.0**<br />
 > ON은 선택한 Aside 계정의 **새 작업 지침과 확장 전용 MCP**에 적용됩니다. `jev_browser_run`의 행동 선택은 Jev를 거치며, Aside 내장 도구 전체를 강제로 가로채는 기능은 제공하지 않습니다.
+
+## 0.2.0 주요 변경사항
+
+- 아이콘 중심 팝오버, 연결 상태 애니메이션, 펼침 진단·설정, 접근성 이름과 동작 줄이기 지원.
+- ON에서 로컬 MCP·실제 Jev 인증·현재 Aside 연결을 검증한 뒤 확장 MCP 실행 허용. 검증은 1시간 뒤 만료되며 설정·키 변경이나 OFF에서 무효화됩니다.
+- macOS에서는 별도 숨김 입력 창으로 API 키를 받아 키체인에 저장. Windows는 문서에 명시한 기존 로컬 자격 증명 경로 사용.
+- 접속 IP 기반 한·영 툴팁과 수동 언어 선택.
+- 새 관찰·완료 및 위험 평가·신뢰도 검사·오류 시 중단을 포함한 제한된 브라우저 실행.
+- Windows/macOS 안내 설치, 한·영 문서와 재현 가능한 로컬 전송 벤치마크.
+
+[0.2.0 릴리즈](https://github.com/himomohi/aside-jev/releases/tag/v0.2.0) · [소스와 설치 스크립트 다운로드](https://github.com/himomohi/aside-jev/releases/latest/download/aside-jev-source.zip)
+
+ZIP은 소스·설치 스크립트이며 서명·공증된 macOS 앱이나 스토어 서명 확장이 아닙니다. [설치 안내](docs/EXTENSION.ko.md)를 확인하세요. Windows CI는 격리 설치를 검증하며 실제 Windows 브라우저 연동은 미확인입니다.
 
 <a id="speed-duel"></a>
 
@@ -54,7 +67,7 @@
 
 > **비교 범위:** 두 방식 모두 Jev SDK를 사용하는 **localhost 전송 벤치마크**입니다. 실제 Aside 기본 모델과 Jev의 브라우저 작업 속도 비교는 아직 측정하지 않았습니다. 영상은 실측 p50을 확대한 시각화이며 화면 녹화가 아닙니다. [측정 조건과 한계](docs/VALIDATION.ko.md#latency)
 
-대시보드와 확장 팝업은 **영어가 기본**입니다. `English / 한국어` 메뉴에서 한국어를 선택하면 해당 화면에 저장됩니다. [다국어 구조](docs/I18N.ko.md)
+대시보드는 영어가 기본입니다. 확장은 **자동(IP)** 모드에서 한국 접속이면 한국어, 그 외에는 영어를 선택하며 조회 실패 시 브라우저 언어를 사용합니다. 수동 언어 선택도 가능하고 IP 주소는 저장하지 않습니다. [다국어 구조](docs/I18N.ko.md)
 
 ## 작은 후보, 명확한 실행
 
@@ -138,7 +151,7 @@ uv run aside-jev dashboard --open
 
 </details>
 
-**macOS 설치기는 API 키를 평문 파일 대신 macOS 키체인에 저장합니다.** 숨김 입력과 `--env-file` 가져오기를 지원하며 Windows는 기존 환경 파일 방식을 유지합니다. 키는 팝업으로 전달하지 않고, 키 존재 확인은 실제 인증 성공을 뜻하지 않습니다. [키체인 이전·교체·삭제 안내](docs/KEYCHAIN.ko.md)를 참고하세요.
+**macOS 설치기는 API 키를 평문 파일 대신 macOS 키체인에 저장합니다.** 숨김 입력과 `--env-file` 가져오기를 지원하며 Windows는 기존 환경 파일 방식을 유지합니다. macOS에서는 확장의 열쇠 아이콘으로 키를 입력·교체할 수 있으며, 저장된 키 원문은 반환하지 않고, 키 존재 확인은 실제 인증 성공을 뜻하지 않습니다. [키체인 이전·교체·삭제 안내](docs/KEYCHAIN.ko.md)를 참고하세요.
 
 <details>
 <summary><strong>MCP만 연결해서 사용하기</strong></summary>

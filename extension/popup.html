@@ -7,29 +7,30 @@
     <link rel="stylesheet" href="popup.css">
     <script type="module" src="popup.js"></script>
   </head>
-  <body>
+  <body class="compact-popover">
     <header>
       <div class="brand">
-        <span class="mark" aria-hidden="true">a↗</span><span>aside <i>/</i> jev</span>
+        <span>aside <i>/</i> jev</span>
       </div>
-      <div class="header-actions"><label class="language-picker"><span class="sr-only" data-i18n="Language">Language</span><select id="language-select" aria-label="Language" data-i18n-aria-label="Language"><option value="en" lang="en">English</option><option value="ko" lang="ko">한국어</option></select></label><span class="local"><span data-i18n="LOCAL">LOCAL</span></span></div>
+      <div class="header-actions"><label class="language-picker"><span class="sr-only" data-i18n="Language">Language</span><select id="language-select" aria-label="Language" data-i18n-aria-label="Language"><option value="auto" data-i18n="Auto (IP)">Auto (IP)</option><option value="en" lang="en">English</option><option value="ko" lang="ko">한국어</option></select></label><span class="local"><span data-i18n="LOCAL">LOCAL</span></span></div>
     </header>
     <main>
-      <div class="eyebrow"><span data-i18n="BROWSER DECISIONS">BROWSER DECISIONS</span></div>
+      <div class="eyebrow sr-only"><span data-i18n="BROWSER DECISIONS">BROWSER DECISIONS</span></div>
       <div class="headline">
         <div>
-          <h1 data-i18n="Decide with Jev">Decide with Jev</h1>
-          <p id="mode-description" data-i18n="Checking the local connection.">Checking the local connection.</p>
+          <h1 class="sr-only" data-i18n="Decide with Jev">Decide with Jev</h1>
+          <p id="mode-description" class="sr-only" data-i18n="Checking the local connection.">Checking the local connection.</p>
         </div>
         <button id="toggle" class="toggle" role="switch" aria-checked="false" aria-label="Jev decision instructions" disabled data-i18n-aria-label="Jev decision instructions">
-          <span></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9m-5-7a8 8 0 1 0 10 0"/></svg>
         </button>
       </div>
       <div class="state-row">
-        <span id="state-dot" class="dot"></span><strong id="state-label" role="status" data-i18n="Checking">Checking</strong><span id="state-detail">—</span>
+        <span id="state-dot" class="dot"></span><strong id="state-label" role="status" data-i18n="Checking">Checking</strong><span id="state-detail" class="sr-only">—</span>
       </div>
+
       <div id="error" class="notice error" role="alert" hidden></div>
-      <div id="warnings" class="notice" role="status" hidden></div>
+
       <div id="setup" hidden>
         <h2 data-i18n="Set up the local connection">Set up the local connection</h2>
         <p data-i18n="A local helper connects this extension to Aside. Follow the project’s extension setup guide for installation and MCP settings.">A local helper connects this extension to Aside. Follow the project’s extension setup guide for installation and MCP settings.</p>
@@ -40,6 +41,15 @@
         </button>
       </div>
       <div id="connected" hidden>
+        <div class="action-dock">
+          <button id="open-keychain" class="keychain-button" type="button" hidden aria-label="Set up API key" title="Set up API key"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="4"/><path d="m11 12 9 9m-3-3 3-3m-6 0 3-3"/></svg></button>
+          <button id="check-connection" class="keychain-button" type="button" aria-label="Run local MCP check" title="Run local MCP check" data-i18n-aria-label="Run local MCP check" data-i18n-title="Run local MCP check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6"/></svg></button>
+          <button id="settings-button" class="keychain-button" aria-expanded="false" aria-controls="settings" data-i18n-title="Connection &amp; decision settings" data-i18n-aria-label="Connection &amp; decision settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg></button>
+          <button id="info-button" class="keychain-button" aria-expanded="false" aria-controls="diagnostics" data-i18n-title="Connection help" data-i18n-aria-label="Connection help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></svg><span id="warning-dot" hidden></span></button>
+        </div>
+        <section id="diagnostics" hidden>
+          <p id="activation-status" class="scope-note" role="status"></p>
+          <div id="warnings" class="notice" role="status" hidden></div>
         <dl class="connections">
           <div>
             <dt data-i18n="Selected profile">Selected profile</dt>
@@ -47,26 +57,42 @@
           </div>
           <div>
             <dt data-i18n="Jev API key">Jev API key</dt>
-            <dd id="key-status">—</dd>
+            <dd class="key-status-row"><span id="key-status">—</span></dd>
           </div>
           <div>
             <dt data-i18n="Decision model">Decision model</dt>
             <dd id="model">jev-latest</dd>
           </div>
           <div>
-            <dt data-i18n="Aside MCP connection">Aside MCP connection</dt>
+            <dt data-i18n="MCP registration">MCP registration</dt>
             <dd id="mcp-status" data-i18n="Setup required">Setup required</dd>
           </div>
+          <div>
+            <dt data-i18n="Local MCP probe">Local MCP probe</dt>
+            <dd class="key-status-row"><span id="probe-status" role="status">—</span></dd>
+          </div>
+          <div>
+            <dt data-i18n="Aside session tools">Aside session tools</dt>
+            <dd id="session-status" data-i18n="Unverified">Unverified</dd>
+          </div>
         </dl>
+        <p id="probe-recovery" class="scope-note" role="status" hidden data-i18n="Reconnect MCP in Aside settings, then start a new task.">Reconnect MCP in Aside settings, then start a new task.</p>
+        <details id="connection-help">
+          <summary><span data-i18n="Connection help">Connection help</span><span aria-hidden="true">⌄</span></summary>
+          <p class="hint" data-i18n="ON verifies MCP, API and Aside. The separate local probe checks only the launcher. Running tasks are not switched automatically.">ON verifies MCP, API and Aside. The separate local probe checks only the launcher. Running tasks are not switched automatically.</p>
+          <p class="hint" data-i18n="In Aside Settings → Plugins &amp; MCPs → MCPs, open aside-jev actions → Refresh tools. Start a new task and call jev_extension_status. If tools are missing, do not treat ON as connected.">In Aside Settings → Plugins &amp; MCPs → MCPs, open aside-jev actions → Refresh tools. Start a new task and call jev_extension_status. If tools are missing, do not treat ON as connected.</p>
+          <p id="probe-detail" class="hint"></p>
+        </details>
         <div class="flow" aria-label="Observe, Jev decides, Aside executes" data-i18n-aria-label="Observe, Jev decides, Aside executes">
           <span data-i18n="Observe">Observe</span><b>→</b><strong data-i18n="Jev decides">Jev decides</strong><b>→</b><span data-i18n="Aside executes">Aside executes</span>
         </div>
         <p class="scope-note" id="scope-note" data-i18n="ON applies decision instructions to new Aside tasks.">ON applies decision instructions to new Aside tasks.</p>
-        <div class="notice limitation">
-          <strong data-i18n="Global interception is not supported">Global interception is not supported</strong>
+        <details class="notice limitation"><summary data-i18n="Global interception is not supported">Global interception is not supported</summary>
           <p data-i18n="This does not intercept all direct Aside tools. The Jev MCP path stops when OFF, on errors or below the confidence threshold.">This does not intercept all direct Aside tools. The Jev MCP path stops when OFF, on errors or below the confidence threshold.</p>
-        </div>
-        <details id="settings">
+        </details>
+
+        </section>
+        <details id="settings" hidden>
           <summary><span class="i18n-text" data-i18n="Connection &amp; decision settings">Connection &amp; decision settings</span><span aria-hidden="true">⌄</span></summary>
           <form id="settings-form" novalidate>
             <div class="settings-grid">
@@ -76,12 +102,12 @@
             <button id="save" class="button wide" type="submit" data-i18n="Save settings">Save settings</button>
           </form>
           <button id="copy-mcp" class="text-button" data-i18n="Copy Aside MCP settings ↗">Copy Aside MCP settings ↗</button>
-          <p class="hint" data-i18n="Connect in Aside Settings → Plugins &amp; MCPs, then start a new task. Key values are never sent to this extension.">Connect in Aside Settings → Plugins &amp; MCPs, then start a new task. Key values are never sent to this extension.</p>
+          <p class="hint" data-i18n="Connect in Aside Settings → Plugins &amp; MCPs, then start a new task. Saved keys are never returned to this extension.">Connect in Aside Settings → Plugins &amp; MCPs, then start a new task. Saved keys are never returned to this extension.</p>
         </details>
       </div>
     </main>
     <footer>
-      <span id="footer-status" data-i18n="Checking local helper">Checking local helper</span><button id="refresh" class="text-button" aria-label="Refresh status" data-i18n-aria-label="Refresh status" data-i18n="Refresh ↻">Refresh ↻</button>
+      <span id="footer-status" class="sr-only" data-i18n="Checking local helper">Checking local helper</span><button id="refresh" class="text-button" aria-label="Refresh status" data-i18n-aria-label="Refresh status" title="Refresh status" data-i18n-title="Refresh status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6"/></svg></button>
     </footer>
     <div id="toast" role="status" hidden></div>
   </body>

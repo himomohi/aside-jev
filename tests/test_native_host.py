@@ -174,3 +174,96 @@ def test_injected_windows_byte_streams_do_not_require_fileno(monkeypatch):
     monkeypatch.setattr(native_host, "dispatch", lambda *_args: {"ok": True})
     output = io.BytesIO()
     assert native_host.serve(ORIGIN, stdin=io.BytesIO(frame({"op": "status"})), stdout=output) == 0
+
+
+@pytest.fixture
+def keychain_install(installed, keychain_store, monkeypatch):
+    from types import SimpleNamespace
+    from aside_jev import credentials
+    monkeypatch.setattr(credentials, 'sys', SimpleNamespace(platform='darwin'))
+    return installed, keychain_store
+
+
+def test_native_key_save_replace_is_scoped_and_never_returns_secret(keychain_install):
+    profile, store = keychain_install
+    root = control.config_root()
+    original = control._load_config(root)
+    for secret in ('fixture-first-private', 'fixture-second-private'):
+        result = invoke({'op': 'set_api_key', 'secret': secret})
+        assert result['ok'] is True
+        assert result['status']['key_status'] == 'configured'
+        assert result['status']['enabled'] is False
+        config = control._load_config(root)
+        assert config['profile_dir'] == original['profile_dir']
+        assert config['env_file'] is None
+        assert store.values == {config['keychain_account']: secret}
+        assert secret not in json.dumps(result)
+        assert all(secret.encode() not in p.read_bytes() for p in root.rglob('*') if p.is_file())
+    assert not (profile / 'AGENTS.md').exists()
+    assert not (root / 'api.env').exists()
+
+
+@pytest.mark.parametrize('message', [
+    {'op': 'set_api_key', 'secret': ''},
+    {'op': 'set_api_key', 'secret': 'with space'},
+    {'op': 'set_api_key', 'secret': 'x' * 4097},
+    {'op': 'set_api_key', 'secret': 123},
+    {'op': 'set_api_key', 'secret': 'fixture', 'root': '/tmp/other'},
+    {'op': 'set_api_key', 'secret': 'fixture', 'account': 'other'},
+])
+def test_native_key_rejects_invalid_input_before_keychain_write(keychain_install, message):
+    _, store = keychain_install
+    assert invoke(message)['ok'] is False
+    assert not store.calls
+
+
+def test_native_key_wrong_origin_cannot_write(keychain_install):
+    _, store = keychain_install
+    result = invoke({'op': 'set_api_key', 'secret': 'fixture'}, origin='chrome-extension://' + 'b' * 32 + '/')
+    assert result['error']['code'] == 'origin'
+    assert not store.calls
+
+
+def test_native_key_denial_does_not_create_plaintext_fallback(keychain_install, monkeypatch):
+    _, store = keychain_install
+    def denied(*args, **kwargs):
+        raise control.ControlError('keychain_access', 'Keychain denied.')
+    monkeypatch.setattr(store, 'get', denied)
+    previous = (control.config_root() / 'config.json').read_bytes()
+    result = invoke({'op': 'set_api_key', 'secret': 'fixture-private'})
+    assert result['error']['code'] == 'keychain_access'
+    assert not store.values
+    assert (control.config_root() / 'config.json').read_bytes() == previous
+    assert not (control.config_root() / 'api.env').exists()
+
+
+def test_native_key_unsupported_platform_does_not_write(installed, monkeypatch, keychain_store):
+    from types import SimpleNamespace
+    from aside_jev import credentials
+    monkeypatch.setattr(credentials, 'sys', SimpleNamespace(platform='win32'))
+    result = invoke({'op': 'set_api_key', 'secret': 'fixture'})
+    assert result['error']['code'] == 'keychain_platform'
+    assert not keychain_store.calls
+
+
+def test_manual_connection_probe_and_status_persistence(installed, monkeypatch):
+    from aside_jev import connection_check
+    assert invoke({'op': 'status'})['status']['connection_check']['state'] == 'unverified'
+    result = invoke({'op': 'check_connection'})
+    assert result['ok'] is True
+    checked = result['status']['connection_check']
+    assert checked['state'] == 'ready'
+    assert checked['scope'] == 'local_mcp_probe'
+    assert checked['tool_count'] >= 4
+    assert result['status']['mcp_connected'] is None
+    monkeypatch.setattr(connection_check, 'run', lambda *_: pytest.fail('status must not start probe'))
+    assert invoke({'op': 'status'})['status']['connection_check'] == checked
+
+
+def test_manual_probe_rejects_origin_fields_and_duplicate_requests(installed, monkeypatch):
+    from aside_jev import connection_check
+    monkeypatch.setattr(connection_check, 'run', lambda *_: pytest.fail('must not start'))
+    assert invoke({'op': 'check_connection'}, origin='chrome-extension://' + 'b' * 32 + '/')['error']['code'] == 'origin'
+    assert invoke({'op': 'check_connection', 'command': 'bad'})['error']['code'] == 'input'
+    with control._lock(control.config_root()):
+        assert invoke({'op': 'check_connection'})['error']['code'] == 'busy'

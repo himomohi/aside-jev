@@ -4,6 +4,12 @@
 
 On macOS, guided `setup` saves the API key in the current user's default **file-based macOS Keychain**. It does not write a new `api.env`. Windows keeps its existing environment-file behavior. No new Python dependency is required.
 
+## Enter from the extension
+
+Click the **key icon** beside the API key status in the popup. A separate window accepts masked input and **Save to Keychain** stores or replaces the key for the installed account. This window stays open during macOS approval. The field is cleared immediately on submission; the key is never persisted in browser storage. There is no API to retrieve or display the existing key. Input travels through Native Messaging to the local helper and Security.framework. After confirmation, close the window and reopen the popup to refresh ON availability. Saving neither authenticates with Jev nor enables it automatically.
+
+Cancelled approval, a locked keychain, and write failures never fall back to plaintext. A timeout does not retry automatically: check for macOS approval, then refresh the status.
+
 ## Install, migrate, rotate, delete
 
 ```bash

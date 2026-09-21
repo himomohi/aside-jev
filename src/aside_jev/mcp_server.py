@@ -143,7 +143,15 @@ async def _mcp_system_one(
     state: dict[str, Any] | str | list[Any], questions: dict[str, Any],
     model: str | None = "jev-latest", timeout_s: float | None = None,
 ) -> dict[str, Any]:
-    """Call TypeSafe Jev System One with Choice / Score / Noul questions."""
+    """Call TypeSafe Jev with named questions. Each question uses type, instructions,
+    criteria ONLY, never question or rubric. Score requires 2..64 ordered criteria
+    from lowest to highest score. Noul uses true/false criteria descriptions.
+    Example questions: {"completed":{"type":"noul","criteria":{"true":"The
+    requested completion is visible","false":"Completion is absent"}},
+    "risk":{"type":"score","criteria":["No sensitive action","Reversible
+    action","Sensitive or irreversible action"]}}.
+    Report any error as an incomplete evaluation, never as overall success.
+    """
     policy = await asyncio.to_thread(active_policy)
     if policy:
         model, timeout_s = policy["model"], policy["timeout_s"]
@@ -215,10 +223,13 @@ async def _mcp_browser_run(
     requires an explicit value. Never include an action needing ungranted user
     approval. Supports click/focus/fill only. Uses live Jev, never a fallback LLM.
     A completion_text and optional exact completion_url verify success locally.
-    Stops on stale observations, repeated actions/pages, errors and budgets.
+    Includes completion Noul and risk Score assessment after DOM completion.
+    verified is true only when both DOM and assessment pass; do not call a
+    separate assessment after success. On assessment_failed report partial
+    completion, never full success. Stops on stale observations and budgets.
     """
     from .browser_runtime import connect_aside
-    from .browser_flow import run_browser_flow
+    from .browser_flow import ActionRule, compact_observation, run_browser_flow
 
     if not 1 <= total_timeout_s <= 300:
         raise ValueError("total_timeout_s must be 1..300")
@@ -226,16 +237,71 @@ async def _mcp_browser_run(
     options.pop("provider")
     if not _browser_lock.acquire(blocking=False):
         raise RuntimeError("Another Jev browser flow is already running. Wait for it to finish.")
+    flow_started = perf_counter()
+    result = None
     try:
         async with asyncio.timeout(total_timeout_s):
             async with connect_aside() as runtime:
-                return await run_browser_flow(runtime, goal=goal, target_id=target_id, action_rules=action_rules,
+                result = await run_browser_flow(runtime, goal=goal, target_id=target_id, action_rules=action_rules,
                                               completion_text=completion_text, completion_url=completion_url,
                                               max_steps=max_steps, total_timeout_s=total_timeout_s,
                                               policy_check=active_policy, **options)
+                if not result["verified"]:
+                    return result
+                result["browser_verified"] = True
+                result["verified"] = False
+                result["browser_elapsed_ms"] = result["elapsed_ms"]
+                # 최종 평가 실패를 브라우저 성공으로 숨기지 않는다.
+                observed = await runtime.attach(target_id)
+                if completion_text not in observed.tree or (completion_url is not None and observed.url != completion_url):
+                    result.update(status="stale_observation", error="Completion changed before assessment")
+                    return result
+                await asyncio.to_thread(active_policy)
+                try:
+                    assessment = await asyncio.to_thread(jev_system_one,
+                        state={"goal": goal, "visible_completion": completion_text,
+                               "completion_observed": True, "final_observation": compact_observation(observed, goal=goal, rules=[ActionRule.parse(rule) for rule in action_rules], completion_text=completion_text), "executed_actions": sum(bool(step["executed"]) for step in result["steps"]),
+                               "authorized_action_rules": action_rules,
+                               "executed_action_trace": [
+                                   {"order": index + 1, "action": action_rules[int(step["choice_id"].removeprefix("action-"))],
+                                    "execution_state": step["execution_state"], "page_changed": step.get("page_changed")}
+                                   for index, step in enumerate(result["steps"]) if step["executed"]]},
+                        questions={
+                            "completed": {"type": "noul", "instructions": "Assess completion against the goal using the observed page, not merely the supplied label.", "criteria": {
+                                "true": "The observed explicit completion satisfies the requested goal.",
+                                "false": "The observation does not establish the requested goal."}},
+                            "risk": {"type": "score", "instructions": "Assess the actual executed browser actions and observed page. Local synthetic verification buttons with no credentials, payment, or persisted user data are no sensitive action. Score 0 is no sensitive action; 2 is sensitive or irreversible. Do not infer sensitive actions solely from missing context.", "criteria": [
+                                "No sensitive action", "Reversible user data change", "Sensitive or irreversible action"]}},
+                        model=options["model"], timeout_s=options["timeout_s"])
+                    latest = await asyncio.to_thread(active_policy)
+                    confirmed = await runtime.attach(target_id)
+                    if confirmed.identity != observed.identity:
+                        result.update(status="stale_observation", error="Completion changed during assessment")
+                        return result
+                    threshold = max(options["min_confidence"], latest["min_confidence"] if latest else 0)
+                    complete = (assessment["answers"]["completed"]["noul"] >= threshold
+                                and assessment["answers"]["risk"]["confidence"] >= threshold
+                                and assessment["answers"]["risk"]["score"] < 1.5)
+                    result.update(assessment=assessment, verified=complete,
+                                  status="verified" if complete else "assessment_uncertain", error=None)
+                except (RuntimeError, ValueError, KeyError, TypeError):
+                    result.update(status="assessment_failed", error="Completion/risk assessment failed; browser actions may already be complete.")
+                result["elapsed_ms"] = round((perf_counter() - flow_started) * 1000, 3)
+                return result
     except TimeoutError:
+        if result is not None:
+            result.update(status="time_budget", verified=False, error="Assessment exceeded total deadline; prior actions are recorded.")
+            result["elapsed_ms"] = round((perf_counter() - flow_started) * 1000, 3)
+            return result
         return {"status": "time_budget", "verified": False, "automatic_fallback": False, "retry": "manual",
                 "error": "Aside 연결 또는 작업 시간이 전체 예산을 초과했습니다. 진행 중이던 행동은 화면에서 확인해 주세요."}
+    except (RuntimeError, ValueError):
+        if result is None:
+            raise
+        result.update(status="assessment_failed", verified=False,
+                      error="Final observation or policy could not be verified; prior actions are recorded.")
+        result["elapsed_ms"] = round((perf_counter() - flow_started) * 1000, 3)
+        return result
     finally:
         _browser_lock.release()
 

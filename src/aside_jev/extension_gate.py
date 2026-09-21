@@ -13,6 +13,8 @@ def active_policy() -> dict[str, Any] | None:
     policy = load_runtime_policy()
     if not policy["enabled"]:
         raise RuntimeError("Aside Jev is OFF. Enable it from the extension popup before requesting a browser decision.")
+    if not policy.get("execution_ready", False):
+        raise RuntimeError("Jev connection is not verified. Run the popup ON connection check before proceeding.")
     if not load_key_environment():
         raise RuntimeError("Jev API key is not configured. Stop this browser task; do not use mock or another decision model.")
     return policy

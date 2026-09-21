@@ -4,11 +4,14 @@
 
 | 기능 | 진입점 | 핵심 파일·심볼 | 데이터·외부 의존성 | 검증 |
 | --- | --- | --- | --- | --- |
+| ON 실행 준비 검사 | 팝업 ON → activate | activation.py, extension_gate.py, native_host.py | MCP·실제 API·Aside RPC | test_activation.py, 실제 팝업·세션 |
+| 수동 MCP 진단 / 복구 | 팝업 ↻, check_connection | connection_check.py, extension_control.py, native_host.py, popup.js | 설치된 실행기, initialize/tools/list; 실제 세션과 구분 | test_connection_check.py, test_native_host.py, test_ui_flow.mjs |
+| macOS 키 입력·교체 | 팝업 열쇠 아이콘 → 별도 입력 창 | extension/keychain.*, keychain-form.mjs, native_host.dispatch (set_api_key), credentials.manage | Native Messaging, Security.framework | test_native_host.py, test_keychain_native.py, test_keychain_form.mjs, Computer Use |
 | 툴바 ON/OFF | MV3 action popup | extension/popup.js, controller.mjs | Native Messaging | node --test tests/test_extension_controller.mjs |
 | 계정별 활성 상태·설정 | native-host, extension-status | extension_control.py, native_host.py | 명시한 Aside accountRoot, 키 파일, 로컬 설정 | test_extension_control.py, test_native_host.py |
 | 간편 설치 | Install.command, Install.cmd, setup CLI | installer.py, scripts/install.sh | 고정 uv/Python, 패키지 확장, 기존 Aside 계정 | test_installer.py, macOS 초기 설치 |
 | Native 등록 | setup CLI, scripts/setup_extension.py | extension_control.py, native_platform.py, native_registry.py | macOS manifest / 명시한 Windows HKCU 키 | test_extension_control.py, test_native_platform.py |
-| REPL 브라우저 루프 | jev_browser_run MCP | browser_flow.py, browser_runtime.py | aside mcp의 repl, Jev | test_browser_flow.py, verify_browser_runtime.py |
+| REPL 브라우저 루프 | jev_browser_run MCP | browser_flow.py, browser_runtime.py, mcp_server.py | aside mcp의 repl, Jev | test_browser_flow.py, verify_browser_runtime.py |
 | 결정·신뢰도·확장 OFF 게이트 | jev_choose, jev_step, jev_system_one | mcp_server.py, extension_gate.py | 확장 정책, typed Jev 응답 | test_mcp_server.py, test_jev.py |
 | HTTP 연결 재사용 | choose_live, system_one | jev.py | typesafe-sdk, httpx2 | test_jev.py, benchmark_latency.py |
 | 후보·관찰 제한 | parse_candidates, sanitize_context | core.py, aside_bridge.py | 앱 후보, 페이지 관찰 | test_core.py, test_observation.py |
@@ -20,3 +23,7 @@
 | CLI 표시 언어 | --lang en 또는 ko | cli.py, cli_i18n.py | API 계약 유지 | test_cli_i18n.py |
 
 확장 ON은 새 Aside 작업의 지침과 확장 전용 MCP에 적용됩니다. 기존 내장 도구를 전역 가로채는 경로는 구현되어 있지 않습니다.
+
+| 확장 IP 자동 언어 | 자동(IP) 언어 선택 | extension/region-locale.mjs, popup.js, keychain.js | Country.is 국가 조회, 실패 시 브라우저 언어 | test_ui_i18n.mjs, test_ui_flow.mjs |
+
+| 아이콘 팝오버 | 연결·키·진단·설정·정보 아이콘 | popup.html, popup.css, popup.js | 네이티브 제어, IP 번역, 진단 패널 | test_ui_flow.mjs, 실제 Aside CUA |

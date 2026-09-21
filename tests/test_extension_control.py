@@ -78,7 +78,7 @@ def test_on_off_preserves_user_rules_and_is_idempotent(installation, monkeypatch
     assert "sentinel-secret" not in json.dumps(status)
     assert agents.read_text(encoding="utf-8").startswith(original + "\n")
     skill = profile / "skills" / "user" / "aside-jev" / "SKILL.md"
-    assert ("status-host.cmd" if os.name == "nt" else "extension-status") in skill.read_text(encoding="utf-8")
+    assert "MCP `jev_extension_status`" in skill.read_text(encoding="utf-8")
     assert "OFF" in skill.read_text(encoding="utf-8")
     before = agents.read_bytes(), skill.read_bytes(), (root / "config.json").read_bytes(), sorted((root / "backups").iterdir())
     control.set_enabled(True)
@@ -127,7 +127,7 @@ def test_configure_updates_rules_when_enabled_and_off_does_not_install(installat
     result = control.configure(min_confidence=0.9, timeout_s=30)
     assert result["enabled"]
     assert "0.9" in (profile / "AGENTS.md").read_text(encoding="utf-8")
-    assert control.load_runtime_policy() == {"enabled": True, "model": "jev-latest", "min_confidence": 0.9, "timeout_s": 30.0}
+    assert control.load_runtime_policy() == {"enabled": True, "execution_ready": False, "model": "jev-latest", "min_confidence": 0.9, "timeout_s": 30.0}
 
 
 @pytest.mark.parametrize("values", [{"min_confidence": float("nan")}, {"min_confidence": True}, {"min_confidence": 1.1}, {"timeout_s": 0}, {"timeout_s": float("inf")}])

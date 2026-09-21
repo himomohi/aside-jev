@@ -83,3 +83,7 @@ The popup HTML preview covered an unconfirmed host, disabled toggle, and reconne
 - OFF/timeout does not undo actions already sent. Inspect `unconfirmed` state before manually resuming.
 - Sanitization is an auxiliary size/credential-pattern filter, not universal personal-data detection.
 - CI uses synthetic accounts. It does not establish actual Aside browser connectivity or a published GitHub release.
+
+## Integrated completion assessment
+
+설치된 MCP 브라우저 도구는 최종 DOM 확인 → 고정된 질문 계약으로 Jev Noul/Score 평가 → DOM 재확인을 수행합니다. `browser_verified`는 브라우저 완료를 별도로 기록합니다. 전체 `verified`는 완료 확률과 위험 평가 확신이 현재 최소 신뢰도 이상이고, 0..2 위험 척도에서 점수가 1.5 미만일 때만 참입니다. 공급자 오류·낮은 확신·높은 위험·화면 변경·시간 초과는 전체 성공으로 반환하지 않습니다. 평가 실패나 시간 초과에도 이미 실행한 행동 기록을 보존합니다. 이 사후 평가는 민감한 행동의 사전 승인을 대체하지 않습니다. 일반 System One 질문은 `instructions`와 `criteria`를 사용하며 잘못된 `question`·`rubric` 필드는 외부 호출 전에 거부합니다.

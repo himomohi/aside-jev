@@ -63,6 +63,7 @@ def manage(action: str, *, root: Path | None = None, secret: str | None = None) 
             if secure:
                 result["key_status"] = "configured" if keychain.get_store().contains(account) else "missing"
             return result
+        control._atomic_write(target / "activation.json", b"{}")
         if action == "delete":
             if not secure:
                 raise control.ControlError("keychain_missing", "This installation still uses a legacy env file. No file was deleted.")

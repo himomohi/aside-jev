@@ -223,6 +223,8 @@ def system_one(
             question = {"type": "choice" if isinstance(question, Choice) else "score" if isinstance(question, Score) else "noul", "instructions": question.instructions, "criteria": question.criteria}
         if not isinstance(question, dict):
             raise ValueError("each question must be a dict or SDK question")
+        if set(question) - {"type", "kind", "instructions", "criteria"}:
+            raise ValueError("Use instructions (not question/rubric). Score needs an ordered criteria array; Noul needs true/false criteria or instructions.")
         qtype = str(question.get("type") or question.get("kind") or "").lower()
         instructions = question.get("instructions")
         if instructions is not None and not isinstance(instructions, (str, dict, list)):
@@ -240,6 +242,8 @@ def system_one(
                 raise ValueError("score questions need 2 to 64 ordered text, object, or array criteria")
             built[name] = Score(instructions=instructions, criteria=[sanitize_context(item, max_chars=2000) for item in criteria])
         elif qtype in ("noul", "boolean", "bool"):
+            if not instructions and not criteria:
+                raise ValueError("noul needs instructions or true/false criteria")
             if criteria is not None and (not isinstance(criteria, dict) or set(criteria) - {"true", "false"}):
                 raise ValueError("noul criteria must be an object with true/false descriptions or null")
             built[name] = Noul(instructions=instructions, criteria=sanitize_context(criteria, max_chars=2000))

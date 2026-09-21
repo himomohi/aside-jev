@@ -293,7 +293,7 @@ def _rules(config: dict[str, Any]) -> str:
 - 여러 페이지를 이동하는 연속 브라우저 작업은 MCP `jev_browser_run`을 우선 사용한다. 허용할 행동과 명시적인 완료 조건을 제공하고, 매 단계 관찰 → 간결한 상태 → live Jev 선택 → Aside 실행 → 새 관찰 흐름을 유지한다. 이전 페이지의 ref를 재사용하지 않는다.
 - 모든 다음 브라우저 행동은 현재 관찰에서 실행 가능한 완전한 후보와 abstain을 만들고 MCP `jev_step`으로 판단한다. provider는 live, model은 {config['model']}, 최소 신뢰도는 {config['min_confidence']}, HTTP 단계별 한도는 {config['timeout_s']}초다.
 - 실행 도구·선택자·인자를 Jev 응답 후 임의로 변경하지 않는다. Jev가 선택한 검증된 후보 한 개만 기존 Aside 권한과 사용자 승인 범위 안에서 실행하고 새 관찰로 결과를 확인한다.
-- 완료 여부는 `jev_system_one`의 Noul, 위험도는 Score로 판단한다. 위험 평가용 rubric은 작업 맥락에 명시하고 민감한 작업의 사용자 승인을 생략하지 않는다.
+- `jev_browser_run`의 verified=true는 화면 검증과 내부 평가 통과를 뜻한다. 평가 실패는 부분 완료로 보고하고 숨기지 않는다. 별도 단일 단계의 완료 여부는 `jev_system_one`의 Noul, 위험도는 Score로 판단한다. Score criteria는 낮은 위험부터 높은 위험 순서의 배열로 명시하고 민감한 작업의 사용자 승인을 생략하지 않는다.
 - MCP 미연결, 키 없음, Jev 오류, 부정확한 응답, 낮은 신뢰도 또는 abstain이면 즉시 중단한다. mock이나 기존 모델의 독자적 선택으로 우회하지 않는다.
 - MCP 서버는 `aside-jev serve --extension` 연결을 사용한다. 확장 ON은 서버가 Aside에 등록되었다는 뜻이 아니다. 미연결이면 설정 안내 후 중단한다.
 - 브라우저·컴퓨터 전체 판단이 기술적으로 강제된다고 설명하지 않는다. 적용 범위는 새 Aside 작업의 지침이며 기존 작업에는 자동 소급되지 않는다.
@@ -302,21 +302,21 @@ def _rules(config: dict[str, Any]) -> str:
 
 
 def _skill(config: dict[str, Any]) -> str:
-    if config.get("platform") == "windows":
-        command = '"' + str(Path(config["mcp_wrapper"]).parent / "status-host.cmd") + '"'
-    else:
-        command = "ASIDE_JEV_CONFIG_DIR=" + shlex.quote(str(Path(config["mcp_wrapper"]).parent)) + " " + shlex.join([config["python_executable"], "-m", "aside_jev.cli", "extension-status"])
     return f"""---
 name: aside-jev
 description: Aside 브라우저 행동 선택, 완료 여부, 위험 판단에 Jev를 사용하는 사용자 설치 확장. 사용 전에 확장 상태를 확인한다.
 ---
 {SKILL_MARKER}
 # Aside Jev
-먼저 `{command}`로 확장 상태를 확인한다.
-`enabled`와 `instructions_applied`가 true인지 확인한다. OFF이면 이 스킬의 판단 경로를 적용하지 않는다.
+먼저 이 Aside 세션에 MCP `jev_extension_status` 도구가 노출되었는지 확인하고 호출하여 확장 상태를 확인한다.
+도구가 없다면 브라우저 행동을 중단하고 확장 팝업의 연결 확인을 실행하도록 안내한다. 로컬 연결 확인 성공은 Aside 세션 연결 증거가 아니다. Aside 설정 → Plugins & MCPs → MCPs의 aside-jev 메뉴에서 Refresh tools를 실행한 뒤 새 작업에서 jev_extension_status를 호출한다.
+샌드박스에서 개발 폴더의 Python이나 extension-status CLI를 실행하거나 권한을 우회하지 않는다.
+`enabled`, `instructions_applied`, `execution_ready`가 모두 true인지 확인한다. execution_ready가 false이면 팝업의 ON 연결 검사를 통과할 때까지 작업을 시작하지 않는다. OFF이면 이 스킬의 판단 경로를 적용하지 않는다.
 ON이면 각 브라우저 행동에 대해 앱이 소유한 후보 표를 만들고 live MCP `jev_step`으로 다음 한 개를 선택한다.
 연속된 브라우저 작업은 MCP `jev_browser_run`을 우선 사용한다. 허용된 행동과 완료 조건을 지정하고 각 행동 후 새 관찰을 받아 ref를 갱신한다.
-완료·위험 평가는 live MCP `jev_system_one`의 Noul/Score를 사용한다.
+`jev_browser_run`은 화면 검증 뒤 Noul/Score 평가까지 내부 수행한다. verified=true와 assessment가 있으면 중복 평가하지 않는다.
+단일 단계의 별도 완료·위험 평가는 live MCP `jev_system_one`을 사용한다. 질문 필드는 type, instructions, criteria이며 question/rubric은 사용하지 않는다. Noul criteria는 true/false 설명 객체, Score criteria는 낮은 위험부터 높은 위험 순서의 문자열 배열이다.
+평가 실패·assessment_failed·assessment_uncertain·시간 초과이면 클릭 성공과 전체 완료를 구분해서 사용자에게 알린다. 평가가 실패한 채 전체 성공이라고 보고하거나 오류를 숨기지 않는다.
 연결 실패·인증 실패·낮은 신뢰도·abstain이면 행동을 멈춘다. mock 또는 독자 판단으로 대체하지 않는다.
 기존 Aside 권한과 민감한 행동의 사용자 승인 경계를 유지한다.
 본 스킬과 AGENTS 지침은 모델에게 요구하는 절차다. 내장 브라우저 도구 전체의 네이티브 차단이나 전역 모델 교체를 보장하지 않는다.
@@ -387,7 +387,11 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         mcp_registered = settings.get("mcp", {}).get("servers", {}).get("aside-jev") == entry
     except (ControlError, ValueError, AttributeError, OSError):
         mcp_registered = False
+    from .activation import status as activation_status
+    activation = activation_status(root, config)
     return {
+        "activation": activation,
+        "execution_ready": bool(config["enabled"] and applied and mcp_registered and ready and activation.get("state") == "ready"),
         "configured": True,
         "enabled": bool(config["enabled"] and applied),
         "desired_enabled": config["enabled"],
@@ -395,6 +399,7 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         "live_available": ready,
         "key_status": key_status,
         "credential_store": config.get("credential_store", "env_file"),
+        "keychain_ui_supported": sys.platform == "darwin",
         "model": config["model"],
         "min_confidence": config["min_confidence"],
         "timeout_s": config["timeout_s"],
@@ -404,6 +409,7 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         "native_interception": False,
         "mcp_registration": "configured" if mcp_registered else "manual",
         "mcp_connected": None,
+        "connection_check": _connection_check_status(root),
         "legacy_blocks": legacy_count,
         "legacy_global_rules": legacy_global,
         "warnings": warnings,
@@ -421,6 +427,35 @@ def _mcp_entry(config: dict[str, Any]) -> dict[str, Any]:
     return {"enabled": True, "transport": "stdio", "command": command, "args": args, "env": {}}
 
 
+def _connection_check_status(root: Path) -> dict[str, Any]:
+    from .connection_check import result
+    try:
+        value = json.loads(_text(root / "connection-check.json", limit=4096) or "null")
+        if (isinstance(value, dict) and set(value) == {"state", "code", "checked_at", "tool_count", "scope"}
+                and value["state"] in ("ready", "failed")
+                and value["code"] in ("local_probe_ready", "probe_timeout", "launcher_missing", "launcher_denied", "probe_failed")
+                and value["scope"] == "local_mcp_probe"
+                and type(value["tool_count"]) is int and 0 <= value["tool_count"] <= 10000
+                and isinstance(value["checked_at"], str)):
+            datetime.fromisoformat(value["checked_at"])
+            return value
+    except (ControlError, ValueError, OSError):
+        pass
+    return result()
+
+
+def check_connection() -> dict[str, Any]:
+    from .connection_check import run
+    root = config_root()
+    # 동일 설치의 중복 검사와 설치 변경은 기존 비차단 잠금으로 직렬화한다.
+    with _lock(root):
+        config = _load_config(root)
+        entry = _mcp_entry(config)
+        checked = run(entry["command"], entry["args"], str(root))
+        _atomic_write(root / "connection-check.json", _json_bytes(checked))
+        return _status(root, config)
+
+
 def get_status() -> dict[str, Any]:
     root = config_root()
     with _lock(root):
@@ -429,7 +464,7 @@ def get_status() -> dict[str, Any]:
 
 def load_runtime_policy() -> dict[str, Any]:
     status = get_status()
-    return {name: status[name] for name in ("enabled", "model", "min_confidence", "timeout_s")}
+    return {name: status[name] for name in ("enabled", "execution_ready", "model", "min_confidence", "timeout_s")}
 
 
 def _transaction(root: Path, updates: list[tuple[Path, bytes, int]], *, after_write: Callable[[], None] | None = None) -> None:
@@ -524,6 +559,8 @@ def set_enabled(enabled: bool) -> dict[str, Any]:
         raise ControlError("input", "enabled는 true 또는 false여야 합니다.")
     root = config_root()
     with _lock(root):
+        if not enabled:
+            _atomic_write(root / "activation.json", b"{}")
         return _apply(root, _load_config(root), enabled)
 
 

@@ -221,3 +221,15 @@ def test_busy_requests_fail_without_waiting_or_extra_provider_calls(fake_provide
         finally:
             release.set()
         assert all(task.result()[0] == "a" for task in pending)
+
+@pytest.mark.parametrize('question', [
+    {'type':'noul','question':'Is it done?'},
+    {'type':'score','rubric':'safe to unsafe'},
+    {'type':'noul'},
+])
+def test_malformed_assessment_is_rejected_before_provider(monkeypatch, question):
+    def forbidden(*args, **kwargs):
+        raise AssertionError('must not send malformed questions')
+    monkeypatch.setattr(jev, '_request', forbidden)
+    with pytest.raises(ValueError):
+        jev.system_one('synthetic', {'assessment':question})

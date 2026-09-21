@@ -39,7 +39,7 @@ jobs:
       - name: Python regression tests
         run: uv run --frozen --extra dev pytest -q
       - name: JavaScript regression tests
-        run: node --test tests/test_extension_controller.mjs tests/test_ui_i18n.mjs tests/test_ui_flow.mjs tests/test_video_i18n.mjs
+        run: node --test tests/test_extension_controller.mjs tests/test_keychain_form.mjs tests/test_ui_i18n.mjs tests/test_ui_flow.mjs tests/test_video_i18n.mjs
       - name: Check translated documents
         run: uv run --frozen python scripts/check_i18n.py
       - name: Build wheel

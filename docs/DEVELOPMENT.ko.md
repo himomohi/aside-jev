@@ -18,7 +18,7 @@ uv sync --frozen --extra dev
 uvx --from ruff==0.13.2 ruff check .
 uvx --from pyright==1.1.407 pyright
 uv run --frozen --extra dev pytest -q
-node --test tests/test_extension_controller.mjs tests/test_ui_i18n.mjs tests/test_ui_flow.mjs tests/test_video_i18n.mjs
+node --test tests/test_extension_controller.mjs tests/test_keychain_form.mjs tests/test_ui_i18n.mjs tests/test_ui_flow.mjs tests/test_video_i18n.mjs
 uv run --frozen python scripts/check_i18n.py
 uv build --wheel
 ```

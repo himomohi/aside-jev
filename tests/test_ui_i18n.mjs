@@ -11,6 +11,7 @@ const decode = (value) => value.replaceAll("&amp;", "&").replaceAll("&quot;", '"
 for (const [name, createI18n, messages, path] of [
   ["dashboard", workspaceI18n, workspaceMessages, "../src/aside_jev/static/index.html"],
   ["popup", popupI18n, popupMessages, "../extension/popup.html"],
+  ["keychain", popupI18n, popupMessages, "../extension/keychain.html"],
 ]) {
   test(`${name}: 영어 기본, 명시적 언어만 저장, 저장 실패 복구`, () => {
     const values = new Map();
@@ -43,15 +44,16 @@ for (const [name, createI18n, messages, path] of [
   test(`${name}: lang, aria-label, placeholder를 같이 변경`, () => {
     const i18n = createI18n("language", null);
     const text = { dataset: { i18n: "Language" }, textContent: "" };
-    const attributes = { "data-i18n-aria-label": "Language", "data-i18n-placeholder": "Language" };
+    const attributes = { "data-i18n-aria-label": "Language", "data-i18n-placeholder": "Language", "data-i18n-title": "Language" };
     const input = { getAttribute: (name) => attributes[name], setAttribute: (name, value) => { attributes[name] = value; } };
-    const root = { documentElement: {}, querySelectorAll: (selector) => selector === "[data-i18n]" ? [text] : selector.includes("title") ? [] : [input] };
+    const root = { documentElement: {}, querySelectorAll: (selector) => selector === "[data-i18n]" ? [text] : [input] };
     i18n.setLanguage("ko");
     i18n.apply(root);
     assert.equal(root.documentElement.lang, "ko");
     assert.equal(text.textContent, "언어");
     assert.equal(attributes["aria-label"], "언어");
     assert.equal(attributes.placeholder, "언어");
+    assert.equal(attributes.title, "언어");
     i18n.setLanguage("en");
     i18n.apply(root);
     assert.equal(root.documentElement.lang, "en");
@@ -96,4 +98,39 @@ test("manifest 지역화는 기존 nativeMessaging 권한만 유지한다", () =
 
 test("독립 배포되는 대시보드와 확장의 번역 사전은 동일하다", () => {
   assert.deepEqual(workspaceMessages, popupMessages);
+});
+
+const { createExtensionI18n } = await import('../extension/region-locale.mjs');
+test('IP 자동 언어: 한국과 해외, 쿠키 미전송, IP 미저장', async () => {
+  for (const [country, expected] of [['KR', 'ko'], ['US', 'en'], ['JP', 'en']]) {
+    const saved = new Map();
+    const i18n = createExtensionI18n({getItem: k => saved.get(k), setItem: (k,v) => saved.set(k,v)});
+    await i18n.resolve({fetcher: async (url, options) => {
+      assert.equal(url, 'https://api.country.is/');
+      assert.equal(options.credentials, 'omit');
+      assert.equal(options.referrerPolicy, 'no-referrer');
+      return {ok:true,json:async()=>({country,ip:'test-only'})};
+    }});
+    assert.equal(i18n.language, expected);
+    assert.equal(saved.size, 0);
+  }
+});
+test('IP 조회 실패와 잘못된 응답은 브라우저 언어로 복구', async () => {
+  for (const fetcher of [async()=>{throw Error('offline')}, async()=>({ok:true,json:async()=>({country:123})})]) {
+    const i18n=createExtensionI18n(null);
+    await i18n.resolve({fetcher,browserLanguage:'ko-KR'});
+    assert.equal(i18n.language,'ko');
+  }
+});
+test('IP 응답이 늦게 와도 수동 언어 선택을 덮어쓰지 않는다', async () => {
+  let finish;
+  const i18n=createExtensionI18n(null);
+  const pending=i18n.resolve({fetcher:()=>new Promise(resolve=>{finish=resolve})});
+  i18n.setLanguage('en');
+  finish({ok:true,json:async()=>({country:'KR'})});
+  await pending;
+  assert.equal(i18n.language,'en');
+  let requested=false;
+  await i18n.resolve({fetcher:async()=>{requested=true}});
+  assert.equal(requested,false);
 });

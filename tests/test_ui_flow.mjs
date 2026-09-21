@@ -27,6 +27,7 @@ function surface(path) {
     showModal() { this.open = true; }
     close() { this.open = false; }
     scrollIntoView() {}
+    focus() {}
   }
   const html = readFileSync(new URL(path, import.meta.url), "utf8");
   for (const match of html.matchAll(/<([\w-]+)\s[^>]*\bid="([^"]+)"[^>]*>/g)) {
@@ -100,7 +101,7 @@ test("팝업 실제 이벤트: 네이티브 미연결 오류 번역과 설정 �
   installGlobals(t, { document, localStorage: { getItem: () => null, setItem() {} }, chrome: undefined });
   await import("../extension/popup.js?flow-test");
   await settle();
-  assert.equal(get("language-select").value, "en");
+  assert.equal(get("language-select").value, "auto");
   assert.match(get("error").textContent, /^Install the extension in Aside/);
   assert.equal(get("toggle").disabled, true);
   get("confidence").value = "0.95";
@@ -111,4 +112,116 @@ test("팝업 실제 이벤트: 네이티브 미연결 오류 번역과 설정 �
   assert.match(get("error").textContent, /^Aside에 확장을 설치/);
   assert.equal(get("confidence").value, "0.95");
   assert.equal(get("timeout").value, "25");
+});
+
+test("키 입력 창: 비밀번호 입력을 즉시 지우고 키를 저장소와 UI에 노출하지 않는다", async (t) => {
+  const { document, get } = surface("../extension/keychain.html");
+  const storage = new Map(), events = {};
+  let closed = false, complete, pendingMessage;
+  const keyStatus = { keychain_ui_supported: true, live_available: false, credential_store: 'keychain', key_status: 'missing' };
+  installGlobals(t, {
+    document,
+    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
+    window: { addEventListener: (name, action) => { events[name] = action; }, close: () => { closed = true; } },
+    chrome: { runtime: { sendNativeMessage: (_host, message, callback) => {
+      if (message.op === 'status') callback({ok: true, status: keyStatus});
+      else { complete = callback; pendingMessage = message; }
+    } } },
+  });
+  await import('../extension/keychain.js?ui-test');
+  await settle();
+  assert.equal(get('api-key').disabled, false);
+  get('api-key').value = 'fixture-secret-private';
+  const saving = get('key-form').emit('submit');
+  assert.equal(get('api-key').value, '');
+  assert.equal(get('save-key').disabled, true);
+  assert.equal(get('cancel').disabled, true);
+  complete({ok: true, status: {...keyStatus, live_available: true, key_status: 'configured'}});
+  await saving;
+  assert.equal(get('key-result').hidden, false);
+  assert.equal(pendingMessage.secret, undefined);
+  assert.equal(storage.size, 0);
+  get('api-key').value = 'unsaved-fixture';
+  events.pagehide();
+  assert.equal(get('api-key').value, '');
+  await get('cancel').emit('click');
+  assert.equal(closed, true);
+});
+
+test("로컬 MCP 진단 성공은 세션 연결로 승격하지 않고 수동 요청과 실패 복구를 보존한다", async (t) => {
+  const { document, get } = surface("../extension/popup.html");
+  const calls = [], windows = [];
+  let complete;
+  const status = {
+    enabled: true, live_available: true, keychain_ui_supported: true,
+    min_confidence: 0.7, timeout_s: 15, mcp_registration: "configured", mcp_connected: null,
+    connection_check: { state: "unverified", code: "not_checked", checked_at: null, tool_count: 0, scope: "local_mcp_probe" },
+  };
+  installGlobals(t, {
+    document, localStorage: { getItem: () => null, setItem() {} },
+    chrome: { runtime: { id: "fixture-extension", getURL: path => `chrome-extension://fixture/${path}`,
+      sendNativeMessage: (_host, message, callback) => {
+        calls.push(message);
+        if (message.op === "check_connection") complete = callback;
+        else callback({ ok: true, status });
+      },
+    }, windows: { create: async options => windows.push(options) } },
+  });
+  await import("../extension/popup.js?connection-flow-test");
+  await settle();
+  assert.deepEqual(calls, [{ op: "status" }]);
+  assert.equal(get("mcp-status").textContent, "Registered");
+  assert.equal(get("probe-status").textContent, "Not checked");
+  assert.equal(get("session-status").textContent, "Unverified");
+  assert.equal(get("open-keychain").hidden, false);
+  assert.equal(get("open-keychain").getAttribute("aria-label"), "Replace API key");
+  get("diagnostics").hidden = true;
+  get("settings").hidden = true;
+  await get("settings-button").emit("click");
+  assert.equal(get("settings").hidden, false);
+  assert.equal(get("settings-button").getAttribute("aria-expanded"), "true");
+  await get("info-button").emit("click");
+  assert.equal(get("settings").hidden, true);
+  assert.equal(get("diagnostics").hidden, false);
+  await get("info-button").emit("click");
+  assert.equal(get("diagnostics").hidden, true);
+  await get("open-keychain").emit("click");
+  assert.equal(windows[0].url, "chrome-extension://fixture/keychain.html");
+  const checking = get("check-connection").emit("click");
+  assert.equal(get("probe-status").textContent, "Checking…");
+  assert.equal(get("check-connection").disabled, true);
+  assert.equal(get("toggle").disabled, true);
+  // 프로그램으로 중복 이벤트를 보내도 네이티브 요청은 하나다.
+  await get("check-connection").emit("click");
+  assert.deepEqual(calls, [{ op: "status" }, { op: "check_connection" }]);
+  status.connection_check = { state: "ready", code: "ok", checked_at: "2026-09-21T10:00:00Z", tool_count: 6, scope: "local_mcp_probe" };
+  complete({ ok: true, status });
+  await checking;
+  assert.equal(get("probe-status").textContent, "Ready · local only");
+  assert.equal(get("session-status").textContent, "Unverified");
+  assert.equal(get("probe-recovery").hidden, true);
+  assert.match(get("probe-detail").textContent, /tools: 6/);
+  get("language-select").value = "ko";
+  await get("language-select").emit("change");
+  assert.equal(get("probe-status").textContent, "준비됨 · 로컬만");
+  assert.equal(get("session-status").textContent, "미확인");
+  const retry = get("check-connection").emit("click");
+  status.connection_check = { ...status.connection_check, state: "failed", code: "probe_timeout", tool_count: 0 };
+  complete({ ok: true, status });
+  await retry;
+  assert.equal(get("probe-status").textContent, "진단 실패");
+  assert.equal(get("diagnostics").hidden, false);
+  assert.equal(get("probe-recovery").hidden, false);
+  assert.equal(get("toggle").getAttribute("aria-checked"), "true");
+  assert.equal(get("session-status").textContent, "미확인");
+  status.connection_check = { ...status.connection_check, state: "ready", scope: "unknown" };
+  await get("refresh").emit("click");
+  assert.equal(get("probe-status").textContent, "진단 전");
+});
+
+
+test("팝오버 컨트롤 ID는 고유하다", () => {
+  const html = readFileSync(new URL("../extension/popup.html", import.meta.url), "utf8");
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(new Set(ids).size, ids.length);
 });

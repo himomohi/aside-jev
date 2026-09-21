@@ -53,9 +53,13 @@ Custom account paths are accepted when auto-detection finds no account. `ASIDE_J
 
 Setup accepts a hidden terminal key, an existing key file through `--env-file`, or a `TYPESAFE_API_KEY` / `TYPESAFEAI_API_KEY` environment value. **macOS guided setup saves the key in Keychain**, keeping only a profile-scoped reference in configuration. It verifies the saved value and never falls back to plaintext if Keychain access fails. `--env-file` is an import source on macOS; external source files are not deleted. See [Keychain migration, rotation, and deletion](KEYCHAIN.md).
 
-Windows retains **unencrypted local environment-file storage**. A fresh terminal-only key is saved after confirmation so browser launches can use it later. Files accept simple assignments of the two key names and are never executed as shell scripts. On either platform, keys are not printed or sent to the popup.
+Windows retains **unencrypted local environment-file storage**. A fresh terminal-only key is saved after confirmation so browser launches can use it later. Files accept simple assignments of the two key names and are never executed as shell scripts. On either platform, saved keys are never printed or returned to the popup.
 
-You may skip the key and rerun setup later. ON stays unavailable until a key is configured and readable. Key presence does not verify API authentication. The popup distinguishes saved MCP configuration from a verified running MCP connection.
+On macOS, use the popup’s key icon if you skipped key entry; on Windows, rerun setup. ON stays unavailable until a key is configured and readable. Key presence does not verify API authentication. The popup distinguishes saved MCP configuration from a verified running MCP connection.
+
+### Connection checks
+
+ON, MCP registration, the manual local probe, and tools available in an Aside session are separate states. The ↻ icon runs a bounded initialize/tools/list check without an API request; it does not certify the current session. If Aside shows `0 tools cached`, open **Settings → Plugins & MCPs → MCPs → aside-jev actions → Refresh tools**, then start a new task and call `jev_extension_status`. The installed skill uses that MCP status tool instead of launching a developer venv inside the task sandbox. Native built-in tools are not globally intercepted.
 
 ## Preview and advanced setup
 
@@ -78,3 +82,7 @@ The original `scripts/setup_extension.py` remains available for manual extension
 - **Remove:** turn OFF, disable/remove the Jev MCP entry in Aside, and remove the extension. On macOS run `aside-jev keychain delete` with the configured installation **before removing its config**, to delete its exact Keychain item. Archive the installer/config directories and the exact preview-listed host manifest. On Windows remove only the displayed `HKCU\…\com.aside_jev.control` host key owned by this installation; do not remove parent registry keys. Restore account documents from backups if needed.
 
 ON applies to new task instructions and the dedicated Jev MCP path. It does not intercept every built-in Aside tool. The extension requests only `nativeMessaging`, with no all-sites permission, content script, or background service worker.
+
+## ON readiness gate
+
+ON now runs a bounded local MCP handshake/tool inventory check, a live Jev API check using synthetic data, and an actual Aside REPL check of the registered server, cached required tools and browser RPC. Only a successful activation grants `execution_ready=true`; all extension decision tools enforce this flag. `enabled` remains the instruction state, not permission to execute. The popup switch displays execution readiness. Failures identify MCP/API/Aside recovery steps. Saving credentials, changing configuration, switching OFF or one hour of elapsed time invalidates readiness. Re-run ON after recovery. Existing native Aside tools are not globally intercepted, and existing sessions may still need reconnection. ON verification makes one small live API request; no personal browser content is sent.

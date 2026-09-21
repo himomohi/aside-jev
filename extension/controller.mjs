@@ -4,12 +4,13 @@ export class ExtensionController {
   constructor(transport, changed = () => {}) {
     this.transport = transport;
     this.changed = changed;
-    this.state = { status: null, busy: false, error: null, errorCode: null };
+    this.state = { status: null, busy: false, operation: null, error: null, errorCode: null };
   }
 
   async request(message) {
     if (this.state.busy) return false;
     this.state.busy = true;
+    this.state.operation = message.op;
     this.state.error = null;
     this.state.errorCode = null;
     this.changed(this.state);
@@ -35,6 +36,7 @@ export class ExtensionController {
       return false;
     } finally {
       this.state.busy = false;
+      this.state.operation = null;
       this.changed(this.state);
     }
   }
@@ -42,19 +44,20 @@ export class ExtensionController {
   refresh() {
     return this.request({ op: "status" });
   }
+  checkConnection() {
+    return this.request({ op: "check_connection" });
+  }
   toggle() {
     if (!this.state.status || this.state.busy) return Promise.resolve(false);
-    return this.request({
-      op: "set_enabled",
-      enabled: !this.state.status.enabled,
-    });
+    const ready = this.state.status.execution_ready ?? this.state.status.enabled;
+    return this.request(ready ? { op: "set_enabled", enabled: false } : { op: "activate" });
   }
   configure(min_confidence, timeout_s) {
     return this.request({ op: "configure", min_confidence, timeout_s });
   }
 }
 
-export function nativeTransport(runtime) {
+export function nativeTransport(runtime, timeoutMs = 15000) {
   return (message) =>
     new Promise((resolve, reject) => {
       if (!runtime?.sendNativeMessage) {
@@ -68,7 +71,7 @@ export function nativeTransport(runtime) {
           reject(
             Object.assign(new Error("The local helper did not respond. Refresh its status before retrying."), { code: "native_timeout" }),
           ),
-        15000,
+        timeoutMs,
       );
       runtime.sendNativeMessage(HOST_NAME, message, (response) => {
         clearTimeout(timer);

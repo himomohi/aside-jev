@@ -2,8 +2,12 @@
 
 # Changelog
 
-## 0.2.0 — Unreleased
+## 0.2.0 — 2026-09-21
 
+- Compact icon popover with state animation, accessible controls, and on-demand diagnostics.
+- Verified ON activation gates local MCP, live API, and Aside readiness; key/settings changes and expiry invalidate readiness.
+- Secure macOS Keychain input window and IP-based English/Korean extension localization.
+- Integrated browser completion/risk assessment and manual MCP recovery.
 - `jev_browser_run`: persistent Aside REPL observation → compact context → Jev selection → execution → fresh observation. Stops on cycles, stale observations, no progress, and step/time budgets.
 - MV3 toolbar popup and Native Messaging helper: ON/OFF, account-scoped instructions, key readiness, and decision thresholds.
 - Extension-specific MCP: rejects requests while OFF, requires Live decisions, and enforces the configured confidence threshold. Does not intercept all built-in Aside tools.

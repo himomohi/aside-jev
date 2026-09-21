@@ -80,3 +80,13 @@ test("원문과 오류 코드를 분리해 언어를 바꿔도 네이티브 계�
   assert.equal(controller.state.error, "API 키가 없습니다");
   assert.equal(controller.state.status, null);
 });
+
+test('연결 미검증 ON은 activate 요청, 검증된 ON만 OFF 요청', async () => {
+  const sent=[];
+  const controller=new ExtensionController(async message=>{sent.push(message);return {ok:true,status:{enabled:true,live_available:true,execution_ready:true}}});
+  controller.state.status={enabled:true,live_available:true,execution_ready:false};
+  await controller.toggle();
+  assert.deepEqual(sent[0],{op:'activate'});
+  await controller.toggle();
+  assert.deepEqual(sent[1],{op:'set_enabled',enabled:false});
+});

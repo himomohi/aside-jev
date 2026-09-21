@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Aside Jev · API key</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="keychain.css">
+    <script type="module" src="keychain.js"></script>
+  </head>
+  <body class="keychain-window">
+    <header>
+      <div class="brand"><span>aside <i>/</i> jev</span></div>
+      <label class="language-picker"><span class="sr-only" data-i18n="Language">Language</span><select id="language-select" aria-label="Language" data-i18n-aria-label="Language"><option value="auto" data-i18n="Auto (IP)">Auto (IP)</option><option value="en" lang="en">English</option><option value="ko" lang="ko">한국어</option></select></label>
+    </header>
+    <main>
+      <div class="eyebrow">macOS KEYCHAIN</div>
+      <h1 data-i18n="Save your Jev API key">Save your Jev API key</h1>
+      <p class="intro" data-i18n="Enter your TypeSafe API key. It is saved in this Mac’s Keychain for the selected Aside account.">Enter your TypeSafe API key. It is saved in this Mac’s Keychain for the selected Aside account.</p>
+      <p id="key-state" class="hint" role="status"></p>
+      <form id="key-form" novalidate autocomplete="off">
+        <label for="api-key" data-i18n="TypeSafe API key">TypeSafe API key</label>
+        <input id="api-key" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="4096" required aria-describedby="key-hint key-error" disabled>
+        <p id="key-hint" class="hint" data-i18n="Input stays hidden. Saving clears the field; existing keys cannot be displayed. No browser storage or plaintext file is used.">Input stays hidden. Saving clears the field; existing keys cannot be displayed. No browser storage or plaintext file is used.</p>
+        <p id="key-error" class="notice error" role="alert" hidden></p>
+        <p id="key-result" class="notice" role="status" hidden></p>
+        <div class="key-actions">
+          <button id="cancel" class="button" type="button" data-i18n="Close">Close</button>
+          <button id="save-key" class="button primary" type="submit" disabled data-i18n="Save to Keychain">Save to Keychain</button>
+        </div>
+      </form>
+      <button id="refresh-key" class="text-button" data-i18n="Refresh status">Refresh status</button>
+      <p class="hint" data-i18n="macOS may ask you to allow Keychain access. Saving does not enable Jev or test API authentication.">macOS may ask you to allow Keychain access. Saving does not enable Jev or test API authentication.</p>
+    </main>
+  </body>
+</html>

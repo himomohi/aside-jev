@@ -1,0 +1,10 @@
+.keychain-window { width: 100%; min-width: 300px; }
+.keychain-window main { padding-top: 24px; }
+.keychain-window h1 { font-size: 23px; }
+.keychain-window .intro { margin-top: 12px; color: #52634a; }
+.keychain-window label { font-weight: 550; }
+.keychain-window input { font-size: 16px; min-height: 44px; }
+.key-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.key-actions .button { min-height: 42px; }
+.key-actions .primary { background: #253b2e; color: #edf5e4; border-color: #253b2e; }
+.key-actions .primary:hover { background: #35533e; }

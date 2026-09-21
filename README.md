@@ -31,8 +31,21 @@
 
 **Aside Jev** connects the [Aside](https://aside.com) REPL with [TypeSafe Jev](https://docs.typesafe.ai/introduction). A toolbar toggle, a persistent REPL session, and bounded action selection work together in one browser workflow.
 
-> **Current status: 0.2.0 source preview · not yet released**<br />
+> **Current release: 0.2.0**<br />
 > ON applies to **new task instructions and the extension-specific MCP** for the selected Aside account. `jev_browser_run` delegates action selection to Jev. The extension does not intercept all built-in Aside tools.
+
+## What’s new in 0.2.0
+
+- Icon-based popover with an animated connection control, on-demand diagnostics/settings, accessible labels, and reduced-motion support.
+- ON verifies the local MCP launcher, live Jev authentication, and the active Aside connection before unlocking extension MCP execution. Verification expires after one hour and is invalidated by settings/key changes or OFF.
+- macOS API keys are entered in a dedicated masked window and stored in Keychain. Windows retains its documented local credential path.
+- IP-based English/Korean tooltips and manual language override.
+- Bounded browser execution with fresh observations, completion/risk assessment, confidence checks, and stop-on-error behavior.
+- Guided Windows/macOS installation, localized documentation, and reproducible local transport benchmarks.
+
+[Release 0.2.0](https://github.com/himomohi/aside-jev/releases/tag/v0.2.0) · [Download source and installers](https://github.com/himomohi/aside-jev/releases/latest/download/aside-jev-source.zip)
+
+The ZIP contains source and installation scripts, not a signed/notarized macOS app or a store-signed extension. See the [installation guide](docs/EXTENSION.md). Windows CI covers isolated installation; real Windows browser integration remains unverified.
 
 <a id="speed-duel"></a>
 
@@ -55,7 +68,7 @@
 
 > **What this measures:** both methods use the same Jev SDK in a **localhost transport benchmark**. Actual browser task speed with the default Aside model versus Jev has not been measured. This animation expands measured p50 values; it is not a screen recording. [Method and limitations](docs/VALIDATION.md#latency)
 
-The dashboard and extension popup **default to English**. Choose Korean in the `English / 한국어` menu; each surface remembers your selection. [Localization guide](docs/I18N.md)
+The dashboard defaults to English. The extension uses **Auto (IP)**: Korea selects Korean, other countries select English, with browser-language fallback when the lookup fails. You can override the language; the extension does not store your IP address. [Localization guide](docs/I18N.md)
 
 ## Small candidate sets. Clear execution.
 
@@ -139,7 +152,7 @@ The local demo uses `http://127.0.0.1:8766`. Add `--port 0` for an available por
 
 </details>
 
-**On macOS, setup stores the API key in macOS Keychain**, not in a plaintext file. Hidden terminal input and `--env-file` imports are supported; Windows retains its local environment-file storage. Keys never enter the popup. Key presence is not authentication proof. See [Keychain migration, rotation, and deletion](docs/KEYCHAIN.md).
+**On macOS, setup stores the API key in macOS Keychain**, not in a plaintext file. Hidden terminal input and `--env-file` imports are supported; Windows retains its local environment-file storage. On macOS, the popup’s key icon opens a masked entry window; saved keys are never returned. Key presence is not authentication proof. See [Keychain migration, rotation, and deletion](docs/KEYCHAIN.md).
 
 <details>
 <summary><strong>Use MCP without the popup</strong></summary>

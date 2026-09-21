@@ -83,3 +83,7 @@ Codex Computer Use로 최신 로컬 UI의 데모 결정, 결과·확률·구간�
 - 시간 초과 또는 OFF 전환은 이미 전송된 브라우저 행동을 되돌리지 않습니다. `unconfirmed`이면 화면 확인 후 수동 재개합니다.
 - 자유 텍스트 정제는 자격증명 패턴을 가리는 보조 기능이며 임의의 개인정보·비밀값을 모두 식별하는 기능은 아닙니다.
 - CI는 가상 계정을 사용하며 실제 Aside 브라우저 연결이나 GitHub 릴리즈 배포 성공을 입증하지 않습니다.
+
+## 완료 평가 통합
+
+The installed MCP browser tool now verifies the final DOM, calls Jev Noul/Score with fixed question contracts, and checks the DOM again. `browser_verified` records browser completion separately. Overall `verified` requires completion probability and risk confidence at least the active minimum confidence, with risk score below 1.5 on the 0..2 scale. Provider errors, low certainty, high risk, changed DOM, or timeout cannot produce overall success. Completed action history is retained on assessment failure or timeout. This post-action assessment is not permission to execute sensitive actions. General System One questions use `instructions` and `criteria`, never `question` or `rubric`; malformed questions are rejected locally.

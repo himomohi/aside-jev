@@ -1,5 +1,8 @@
 """Real Security.framework contract, in a disposable keychain, with fake keys."""
 import hashlib
+import io
+import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -51,6 +54,29 @@ def native_contract(path):
         assert store.delete(account) is True
         assert store.delete(account) is False
         assert not store.contains(account) and store.get(account) is None
+        # 확장과 같은 네이티브 요청을 실제 격리 키체인까지 검증한다.
+        from aside_jev import extension_control as control, keychain, native_host
+        profile = path.parent / "native-profile"
+        profile.mkdir()
+        root = path.parent / "native-config"
+        os.environ["ASIDE_JEV_CONFIG_DIR"] = str(root)
+        keychain.get_store = lambda: store
+        identity = "a" * 32
+        control.setup_installation(extension_id=identity, profile_dir=profile,
+                                   native_host_dir=path.parent / "hosts", root=root,
+                                   credential_store="keychain", apply=True)
+        payload = json.dumps({"op": "set_api_key", "secret": "native-ui-fixture"}).encode()
+        import struct
+        destination = io.BytesIO()
+        assert native_host.serve(f"chrome-extension://{identity}/",
+                                 stdin=io.BytesIO(struct.pack("=I", len(payload)) + payload),
+                                 stdout=destination) == 0
+        response = native_host.read_message(io.BytesIO(destination.getvalue()))
+        assert response["ok"] and response["status"]["key_status"] == "configured"
+        assert b"native-ui-fixture" not in destination.getvalue()
+        assert store.get(keychain.account_id(root, profile)) == "native-ui-fixture"
+        assert not (root / "api.env").exists()
+        print("native-message", flush=True)
         print("complete", flush=True)
 
 

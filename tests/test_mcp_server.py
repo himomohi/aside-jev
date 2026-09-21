@@ -95,3 +95,41 @@ def test_mcp_step_discards_decision_after_threshold_increase(monkeypatch):
     monkeypatch.setattr(mcp_server, "active_policy", lambda: {"min_confidence":.99})
     with pytest.raises(RuntimeError, match="settings changed"):
         asyncio.run(mcp_server._mcp_step(goal="Goal", observation={}, candidates=CANDIDATES))
+
+@pytest.mark.parametrize('case,expected', [('success','verified'),('provider','assessment_failed'),('observation_error','assessment_failed'),('low','assessment_uncertain'),('risk_low','assessment_uncertain'),('risk_high','assessment_uncertain'),('stale','stale_observation'),('timeout','time_budget')])
+def test_browser_completion_requires_assessment_and_preserves_actions(monkeypatch, case, expected):
+    from contextlib import asynccontextmanager
+    from aside_jev import browser_runtime, browser_flow
+    from aside_jev.browser_runtime import Observation
+    class Runtime:
+        reads = 0
+        async def attach(self, target):
+            self.reads += 1
+            if case == 'observation_error':
+                raise RuntimeError('private upstream error must not leak')
+            if case == 'timeout':
+                await asyncio.sleep(2)
+            return Observation('https://fixture.test/', 'done' if case != 'stale' or self.reads == 1 else 'changed')
+    @asynccontextmanager
+    async def connection():
+        yield Runtime()
+    async def flow(*args, **kwargs):
+        return {'verified':True,'status':'verified','steps':[{'executed':True,'choice_id':'action-0','execution_state':'confirmed','page_changed':True}], 'elapsed_ms':1, 'provider':'live'}
+    def assessment(**kwargs):
+        assert kwargs['state']['executed_action_trace'][0]['action']['name'] == 'go'
+        assert kwargs['questions']['risk']['criteria'][0] == 'No sensitive action'
+        assert set(kwargs['questions']['completed']['criteria']) == {'true','false'}
+        if case == 'provider':
+            raise RuntimeError('private upstream error must not leak')
+        return {'answers':{'completed':{'noul':.2 if case == 'low' else .99},'risk':{'score':2 if case == 'risk_high' else 0,'confidence':.2 if case == 'risk_low' else .99}}}
+    monkeypatch.setattr(browser_runtime,'connect_aside',connection)
+    monkeypatch.setattr(browser_flow,'run_browser_flow',flow)
+    monkeypatch.setattr(mcp_server,'jev_system_one',assessment)
+    monkeypatch.setattr(mcp_server,'active_policy',lambda:None)
+    output=asyncio.run(mcp_server._mcp_browser_run(goal='done',target_id='test',action_rules=[{'role':'button','name':'go','action':'click'}],completion_text='done',total_timeout_s=1))
+    assert output['status']==expected
+    assert output['verified'] is (case == 'success')
+    assert output['browser_verified'] is True
+    assert output['steps'][0]['executed'] is True
+    assert 'private upstream' not in str(output)
+    assert not mcp_server._browser_lock.locked()

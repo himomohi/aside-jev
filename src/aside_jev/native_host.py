@@ -8,7 +8,7 @@ import struct
 import sys
 from typing import Any, BinaryIO
 
-from . import extension_control as control
+from . import extension_control as control, credentials
 
 MAX_MESSAGE_BYTES = 128 * 1024
 
@@ -73,6 +73,15 @@ def dispatch(origin: str, message: dict[str, Any]) -> dict[str, Any]:
         if set(message) != {"op"}:
             raise control.ControlError("input", "상태 요청에 지원하지 않는 항목이 있습니다.")
         status = control.get_status()
+    elif operation == "activate":
+        if set(message) != {"op"}:
+            raise control.ControlError("input", "Activation accepts no additional fields.")
+        from .activation import activate
+        status = activate()
+    elif operation == "check_connection":
+        if set(message) != {"op"}:
+            raise control.ControlError("input", "연결 확인 요청에는 추가 항목을 지정할 수 없습니다.")
+        status = control.check_connection()
     elif operation == "set_enabled":
         if set(message) != {"op", "enabled"} or not isinstance(message["enabled"], bool):
             raise control.ControlError("input", "ON/OFF 요청은 enabled 값만 지정해 주세요.")
@@ -83,6 +92,14 @@ def dispatch(origin: str, message: dict[str, Any]) -> dict[str, Any]:
         if any(value is None for name, value in message.items() if name != "op"):
             raise control.ControlError("input", "설정 값은 숫자여야 합니다.")
         status = control.configure(**{name: value for name, value in message.items() if name != "op"})
+    elif operation == "set_api_key":
+        # 계정과 저장 위치는 등록된 설치에서만 정한다. 키를 응답에 포함하지 않는다.
+        if set(message) != {"op", "secret"} or not isinstance(message.get("secret"), str):
+            raise control.ControlError("key_format", "API key must be a non-empty string.")
+        from .activation import invalidate
+        invalidate()
+        credentials.manage("set", secret=message["secret"])
+        status = control.get_status()
     else:
         raise control.ControlError("operation", "지원하지 않는 확장 요청입니다.")
     return {"ok": True, "status": status}
