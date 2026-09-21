@@ -42,7 +42,8 @@ HKCU 또는 HKLM에 Aside의 `NativeMessagingHosts` 부모가 **이미 있을 �
 | 항목 | macOS | Windows |
 | --- | --- | --- |
 | Python 환경·설치 파일 | `~/Library/Application Support/AsideJev` | `%LOCALAPPDATA%\AsideJev` |
-| 설정·확장·키 파일·백업 | `~/.config/aside-jev` | `%USERPROFILE%\.config\aside-jev` |
+| 설정·확장·백업 | `~/.config/aside-jev` | `%USERPROFILE%\.config\aside-jev` |
+| API 키 | 사용자의 기본 macOS 키체인 | 설정 폴더의 `api.env` 또는 지정한 환경 파일 |
 | 계정 탐색 | 기존 `~/.aside/u/<숫자>/settings.json` | 기존 `%USERPROFILE%\.aside\u\<숫자>\settings.json` |
 | Native host 등록 | 기존 Aside 데이터 폴더 → `NativeMessagingHosts` | 명시한 HKCU 호스트 키 → 설정 폴더의 manifest |
 
@@ -50,9 +51,11 @@ HKCU 또는 HKLM에 Aside의 `NativeMessagingHosts` 부모가 **이미 있을 �
 
 ## API 키와 설정
 
-숨김 터미널 입력, `--env-file`로 지정한 기존 키 파일 또는 `TYPESAFE_API_KEY` / `TYPESAFEAI_API_KEY` 환경변수를 사용할 수 있습니다. 새 설치에서 터미널 환경변수만 존재하면 확인 후 로컬 키 파일에 보존해 이후 브라우저에서도 사용할 수 있게 합니다. 키는 **암호화되지 않은 로컬 파일**에 저장되며 출력하거나 팝업으로 보내지 않습니다. 키 파일은 위 두 이름의 단순 할당만 허용하고 셸 스크립트로 실행하지 않습니다.
+숨김 터미널 입력, `--env-file`로 지정한 기존 키 파일 또는 `TYPESAFE_API_KEY` / `TYPESAFEAI_API_KEY` 환경변수를 사용할 수 있습니다. **macOS 간편 설치는 키체인에 저장**하고 설정에는 프로필별 참조만 남깁니다. 저장한 키를 다시 읽어 확인하며 키체인 접근 실패 시 평문으로 우회하지 않습니다. macOS의 `--env-file`은 가져오기 원본이고 외부 원본 파일을 삭제하지 않습니다. [키체인 이전·교체·삭제 안내](KEYCHAIN.ko.md)를 참고하세요.
 
-키 입력을 건너뛰었다면 설치를 다시 실행해 입력할 수 있습니다. 키가 없으면 ON으로 켤 수 없습니다. 키 존재 여부는 인증 성공을 뜻하지 않습니다. 팝업은 MCP 설정 저장과 실제 MCP 연결 검증을 구분합니다.
+Windows는 기존의 **암호화되지 않은 로컬 환경 파일** 방식을 유지합니다. 새 설치의 터미널 환경변수는 확인 후 파일에 보존해 이후 브라우저에서도 사용할 수 있게 합니다. 키 파일은 두 이름의 단순 할당만 허용하고 셸 스크립트로 실행하지 않습니다. 어느 플랫폼에서도 키를 출력하거나 팝업으로 보내지 않습니다.
+
+키 입력을 건너뛰었다면 설치를 다시 실행해 입력할 수 있습니다. 키가 없거나 읽을 수 없으면 ON으로 켤 수 없습니다. 키 존재 여부는 인증 성공을 뜻하지 않습니다. 팝업은 MCP 설정 저장과 실제 MCP 연결 검증을 구분합니다.
 
 ## 미리보기·고급 설치
 
@@ -63,15 +66,15 @@ uv run aside-jev setup --dry-run
 uv run aside-jev setup --lang ko
 ```
 
-`setup --dry-run`은 연결 파일과 레지스트리를 변경하지 않습니다. 바깥쪽 Install 실행 파일은 이 명령 전에 패키지 환경을 준비합니다. `setup --help`에서 `--profile-dir`, `--native-host-dir`, `--windows-registry-key`, `--env-file`, `--config-dir`, `--yes`(질문·키 입력 없는 명시적 적용)를 확인하세요.
+`setup --dry-run`은 연결 파일·레지스트리·키체인 항목을 변경하지 않습니다. 바깥쪽 Install 실행 파일은 이 명령 전에 패키지 환경을 준비합니다. `setup --help`에서 `--profile-dir`, `--native-host-dir`, `--windows-registry-key`, `--env-file`, `--config-dir`, `--yes`(질문·키 입력 없는 명시적 적용)를 확인하세요.
 
-기존 `scripts/setup_extension.py`도 수동 확장 ID와 명시 경로용으로 유지합니다. 기본은 미리보기이며 `--apply`는 로컬 연결만 등록하고 MCP 설정은 자동 병합하지 않습니다.
+기존 `scripts/setup_extension.py`도 수동 확장 ID와 명시 경로용으로 유지합니다. 기본은 미리보기이며 `--apply`는 로컬 연결만 등록하고 MCP 설정은 자동 병합하지 않습니다. 이 저수준 도우미는 환경 파일 호환성을 유지하므로 macOS 키체인 저장은 간편 `setup` 또는 `keychain migrate`를 사용하세요.
 
 ## 업데이트·비활성화·제거
 
-- **간편 설치 업데이트:** 새 ZIP을 받아 같은 설치·설정 폴더로 다시 실행합니다. 업데이트 후 Aside에서 확장을 새로고침하세요. 백업과 다른 계정 설정은 보존합니다.
+- **간편 설치 업데이트:** 새 ZIP을 받아 같은 설치·설정 폴더로 다시 실행합니다. macOS는 설정된 기존 키를 키체인으로 이전하고 검증 후 변경되지 않은 설치기 관리 `api.env`만 삭제합니다. 외부 파일과 과거 백업은 보존합니다. 업데이트 후 Aside에서 확장을 새로고침하고 MCP 연결을 재시작하세요.
 - **예전 수동 설치:** 새 고정 확장 ID나 키 파일 경로가 다를 수 있습니다. 설치기는 다른 연결로의 덮어쓰기를 거부합니다. 기존 팝업을 OFF로 바꾸고 MCP를 비활성화한 뒤 옛 확장을 제거하세요. 기존 미리보기에서 표시한 호스트 등록과 설정을 보관 이동한 뒤 새 간편 설치를 시작합니다. 새 연결 확인 전까지 백업을 보존하세요.
 - **비활성화:** OFF로 바꾸고 새 작업을 시작합니다. 선택한 계정의 관리 지침만 제거하며 전용 MCP의 새 판단을 중단합니다. 이미 시작한 동작은 되돌리지 않습니다.
-- **제거:** OFF로 바꾼 뒤 Aside의 Jev MCP와 확장을 제거합니다. 설치·설정 폴더와 미리보기에 나온 정확한 호스트 manifest를 보관 이동하세요. Windows에서는 이 설치가 소유한 `HKCU\…\com.aside_jev.control` 호스트 키만 제거하며 부모 키는 제거하지 않습니다. 필요하면 계정 문서를 백업에서 복구합니다.
+- **제거:** OFF로 바꾼 뒤 Aside의 Jev MCP와 확장을 제거합니다. macOS는 **설정을 제거하기 전에** 해당 설치 환경에서 `aside-jev keychain delete`를 실행해 정확한 키체인 항목을 삭제하세요. 설치·설정 폴더와 미리보기에 나온 정확한 호스트 manifest를 보관 이동합니다. Windows에서는 이 설치가 소유한 `HKCU\…\com.aside_jev.control` 호스트 키만 제거하며 부모 키는 제거하지 않습니다. 필요하면 계정 문서를 백업에서 복구합니다.
 
 ON은 새 작업 지침과 전용 Jev MCP 경로에 적용됩니다. 모든 Aside 내장 도구를 가로채지는 않습니다. 확장의 권한은 `nativeMessaging` 하나이며 전체 사이트 권한·content script·background service worker는 없습니다.

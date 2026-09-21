@@ -5,14 +5,18 @@ import json
 import os
 import secrets
 import shutil
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from typing import Any
+from time import monotonic
 
 from . import __version__
 
 MAX_BODY = 131_072
+MAX_DISCARD = MAX_BODY * 2
+DISCARD_TIMEOUT_S = 0.5
 STATIC = {"/": ("index.html", "text/html"), "/app.css": ("app.css", "text/css"),
           "/app.js": ("app.js", "text/javascript"),
           "/i18n.mjs": ("i18n.mjs", "text/javascript"),
@@ -74,6 +78,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def setup(self) -> None:
         super().setup()
         self.connection.settimeout(10)
+        self._body_read = False
 
     def log_message(self, format: str, *args: Any) -> None:
         # 입력·관찰·키가 액세스 로그에 기록되지 않도록 한다.
@@ -84,13 +89,38 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type + "; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.close_connection = True
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
         self.end_headers()
         try:
             self.wfile.write(body)
+            self.wfile.flush()
+            if self.command == "POST" and status >= 400 and not self._body_read:
+                self._discard_rejected_body()
         except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def _discard_rejected_body(self) -> None:
+        # Half-close only after sending the error. Closing with unread data can
+        # reset TCP before Windows clients receive a 413 (RFC 9112 section 9.6).
+        # Never parse, allocate, or wait for the advertised oversized body.
+        deadline = monotonic() + DISCARD_TIMEOUT_S
+        remaining = MAX_DISCARD
+        try:
+            self.connection.shutdown(socket.SHUT_WR)
+            while remaining > 0:
+                timeout = deadline - monotonic()
+                if timeout <= 0:
+                    break
+                self.connection.settimeout(timeout)
+                chunk = self.rfile.read1(min(65536, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+        except OSError:
             pass
 
     def _json(self, status: int, data: dict[str, Any]) -> None:
@@ -142,7 +172,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._json(429, {"error": "진행 중인 결정이 있습니다. 잠시 후 다시 시도해 주세요.", "code": "busy"})
             return
         try:
-            data = json.loads(self.rfile.read(length))
+            body = self.rfile.read(length)
+            self._body_read = True
+            data = json.loads(body)
             result = decide_request(data)
             self._json(200, result)
         except (ValueError, TypeError, KeyError):

@@ -42,7 +42,8 @@ Registration writes only the specified host under **HKCU**, without administrato
 | Item | macOS | Windows |
 | --- | --- | --- |
 | Python environment and installer files | `~/Library/Application Support/AsideJev` | `%LOCALAPPDATA%\AsideJev` |
-| Configuration, extension, key file, backups | `~/.config/aside-jev` | `%USERPROFILE%\.config\aside-jev` |
+| Configuration, extension, backups | `~/.config/aside-jev` | `%USERPROFILE%\.config\aside-jev` |
+| API key | User's default macOS Keychain | `api.env` in the configuration directory, or the supplied env file |
 | Account detection | Existing `~/.aside/u/<number>/settings.json` | Existing `%USERPROFILE%\.aside\u\<number>\settings.json` |
 | Native host registration | Existing Aside data directory → `NativeMessagingHosts` | Explicit HKCU host key → manifest in configuration directory |
 
@@ -50,9 +51,11 @@ Custom account paths are accepted when auto-detection finds no account. `ASIDE_J
 
 ## API key and settings
 
-Setup accepts a hidden terminal key, an existing key file through `--env-file`, or a `TYPESAFE_API_KEY` / `TYPESAFEAI_API_KEY` environment value. For a fresh install, a terminal-only value is saved to the local key file after confirmation so browser launches can use it later. Keys are stored **unencrypted locally**, never printed or sent to the popup. The file permits simple assignments of these two key names; it is not executed as a shell script.
+Setup accepts a hidden terminal key, an existing key file through `--env-file`, or a `TYPESAFE_API_KEY` / `TYPESAFEAI_API_KEY` environment value. **macOS guided setup saves the key in Keychain**, keeping only a profile-scoped reference in configuration. It verifies the saved value and never falls back to plaintext if Keychain access fails. `--env-file` is an import source on macOS; external source files are not deleted. See [Keychain migration, rotation, and deletion](KEYCHAIN.md).
 
-You may skip the key and rerun setup later. ON stays unavailable until a key is configured. Key presence does not verify API authentication. The popup distinguishes saved MCP configuration from a verified running MCP connection.
+Windows retains **unencrypted local environment-file storage**. A fresh terminal-only key is saved after confirmation so browser launches can use it later. Files accept simple assignments of the two key names and are never executed as shell scripts. On either platform, keys are not printed or sent to the popup.
+
+You may skip the key and rerun setup later. ON stays unavailable until a key is configured and readable. Key presence does not verify API authentication. The popup distinguishes saved MCP configuration from a verified running MCP connection.
 
 ## Preview and advanced setup
 
@@ -63,15 +66,15 @@ uv run aside-jev setup --dry-run
 uv run aside-jev setup --lang ko
 ```
 
-`setup --dry-run` never writes connection files or registry entries. The outer Install launcher still prepares the package environment before invoking it. Use `setup --help` for `--profile-dir`, `--native-host-dir`, `--windows-registry-key`, `--env-file`, `--config-dir`, and `--yes` (explicit noninteractive application, no key prompt).
+`setup --dry-run` never writes connection files, registry entries, or Keychain items. The outer Install launcher still prepares the package environment before invoking it. Use `setup --help` for `--profile-dir`, `--native-host-dir`, `--windows-registry-key`, `--env-file`, `--config-dir`, and `--yes` (explicit noninteractive application, no key prompt).
 
-The original `scripts/setup_extension.py` remains available for manual extension IDs and explicit paths. Its default is preview; `--apply` registers only the local helper and does not automatically merge MCP settings.
+The original `scripts/setup_extension.py` remains available for manual extension IDs and explicit paths. Its default is preview; `--apply` registers only the local helper and does not automatically merge MCP settings. This legacy low-level helper retains environment-file compatibility; use guided `setup` or `keychain migrate` for macOS Keychain storage.
 
 ## Update, disable, and remove
 
-- **Update a guided installation:** download the new ZIP and run the same launcher with the same install/config directories. Reload the extension in Aside after the files update. Backups and unrelated account settings are preserved.
+- **Update a guided installation:** download the new ZIP and run the same launcher with the same install/config directories. On macOS this migrates the configured legacy key to Keychain and removes only the unchanged installer-managed `api.env` after verification. External files and historical backups are retained. Reload the extension and restart its MCP connection after updating.
 - **Earlier manual installation:** the new fixed extension ID or key-file path may differ. Setup refuses to replace an existing connection with another identity. Turn the old popup OFF, disable its MCP entry, remove the old extension, and archive the old preview-listed host registration and config before starting a fresh guided install. Keep backups until the new setup works.
 - **Disable:** turn OFF and start a new task. It removes only the selected account's managed instructions; new decisions in the dedicated MCP stop. In-flight actions are not undone.
-- **Remove:** turn OFF, disable/remove the Jev MCP entry in Aside, and remove the extension. Archive the installer/config directories and the exact preview-listed host manifest. On Windows remove only the displayed `HKCU\…\com.aside_jev.control` host key owned by this installation; do not remove parent registry keys. Restore account documents from backups if needed.
+- **Remove:** turn OFF, disable/remove the Jev MCP entry in Aside, and remove the extension. On macOS run `aside-jev keychain delete` with the configured installation **before removing its config**, to delete its exact Keychain item. Archive the installer/config directories and the exact preview-listed host manifest. On Windows remove only the displayed `HKCU\…\com.aside_jev.control` host key owned by this installation; do not remove parent registry keys. Restore account documents from backups if needed.
 
 ON applies to new task instructions and the dedicated Jev MCP path. It does not intercept every built-in Aside tool. The extension requests only `nativeMessaging`, with no all-sites permission, content script, or background service worker.

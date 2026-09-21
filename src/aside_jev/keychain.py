@@ -12,6 +12,7 @@ import hashlib
 import os
 from pathlib import Path
 import sys
+import threading
 from typing import Iterator
 
 from .native_platform import ControlError
@@ -20,6 +21,7 @@ SERVICE = "com.aside_jev.api-key"
 NOT_FOUND = -25300
 DUPLICATE = -25299
 MAX_KEY_BYTES = 4096
+_INTERACTION_LOCK = threading.RLock()
 
 
 def account_id(root: Path, profile: Path) -> str:
@@ -61,6 +63,8 @@ class _API:
             self._bind(self.cf, "CFDictionaryCreateMutable", [p, C.c_long, p, p], p)
             self._bind(self.cf, "CFDictionarySetValue", [p, p, p], None)
             self._bind(self.cf, "CFArrayCreate", [p, p, C.c_long, p], p)
+            self._bind(self.sec, "SecKeychainGetUserInteractionAllowed", [C.POINTER(C.c_ubyte)], C.c_int32)
+            self._bind(self.sec, "SecKeychainSetUserInteractionAllowed", [C.c_ubyte], C.c_int32)
             self._bind(self.sec, "SecKeychainCopyDefault", [C.POINTER(p)], C.c_int32)
             self._bind(self.sec, "SecKeychainOpen", [C.c_char_p, C.POINTER(p)], C.c_int32)
             self._bind(self.sec, "SecItemCopyMatching", [p, C.POINTER(p)], C.c_int32)
@@ -83,6 +87,23 @@ class _API:
     def callbacks(self, name: str) -> C.c_void_p:
         # Callback symbols are structs, not CFTypeRef pointer variables.
         return C.c_void_p(C.addressof(C.c_byte.in_dll(self.cf, name)))
+
+    @contextmanager
+    def interaction(self, allowed: bool) -> Iterator[None]:
+        # SecItem's UI flag alone is insufficient for the file-based shim.
+        # Serialize our native operations while changing this process-wide flag,
+        # and restore the prior policy even when a query fails. Never unlock or
+        # relax a keychain's access controls here.
+        with _INTERACTION_LOCK:
+            previous = C.c_ubyte()
+            _check(self.sec.SecKeychainGetUserInteractionAllowed(C.byref(previous)))
+            if not allowed:
+                _check(self.sec.SecKeychainSetUserInteractionAllowed(False))
+            try:
+                yield
+            finally:
+                if not allowed:
+                    _check(self.sec.SecKeychainSetUserInteractionAllowed(previous.value))
 
     @contextmanager
     def dictionary(self, values: dict[str, object]) -> Iterator[int]:
@@ -126,24 +147,25 @@ class KeychainStore:
         self.keychain_path = keychain_path
 
     @contextmanager
-    def _scope(self) -> Iterator[tuple[_API, C.c_void_p, C.c_void_p]]:
+    def _scope(self, *, allow_interaction: bool = True) -> Iterator[tuple[_API, C.c_void_p, C.c_void_p]]:
         api = _api()
-        keychain = C.c_void_p()
-        status = (api.sec.SecKeychainOpen(os.fsencode(self.keychain_path), C.byref(keychain))
-                  if self.keychain_path is not None else api.sec.SecKeychainCopyDefault(C.byref(keychain)))
-        _check(status)
-        search = None
-        try:
-            handles = (C.c_void_p * 1)(keychain.value)
-            search = api.cf.CFArrayCreate(None, handles, 1, api.callbacks("kCFTypeArrayCallBacks"))
-            if not search:
-                raise ControlError("keychain_unavailable", "Could not scope the Keychain query.")
-            yield api, keychain, C.c_void_p(search)
-        finally:
-            if search:
-                api.cf.CFRelease(search)
-            if keychain:
-                api.cf.CFRelease(keychain)
+        with api.interaction(allow_interaction):
+            keychain = C.c_void_p()
+            status = (api.sec.SecKeychainOpen(os.fsencode(self.keychain_path), C.byref(keychain))
+                      if self.keychain_path is not None else api.sec.SecKeychainCopyDefault(C.byref(keychain)))
+            _check(status)
+            search = None
+            try:
+                handles = (C.c_void_p * 1)(keychain.value)
+                search = api.cf.CFArrayCreate(None, handles, 1, api.callbacks("kCFTypeArrayCallBacks"))
+                if not search:
+                    raise ControlError("keychain_unavailable", "Could not scope the Keychain query.")
+                yield api, keychain, C.c_void_p(search)
+            finally:
+                if search:
+                    api.cf.CFRelease(search)
+                if keychain:
+                    api.cf.CFRelease(keychain)
 
     @staticmethod
     def _identity(api: _API, account: str) -> dict[str, object]:
@@ -154,7 +176,7 @@ class KeychainStore:
                 "kSecUseDataProtectionKeychain": False}
 
     def _read(self, account: str, *, metadata: bool, allow_interaction: bool) -> str | bool | None:
-        with self._scope() as (api, _keychain, search):
+        with self._scope(allow_interaction=allow_interaction) as (api, _keychain, search):
             values = {**self._identity(api, account), "kSecMatchSearchList": search,
                       "kSecMatchLimit": api.constant("kSecMatchLimitOne"),
                       "kSecReturnAttributes" if metadata else "kSecReturnData": True}
