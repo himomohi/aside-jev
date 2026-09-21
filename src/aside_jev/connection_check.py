@@ -80,7 +80,13 @@ async def _probe(command: str, args: list[str], cwd: str, timeout_s: float) -> i
                     process.kill()
             except ProcessLookupError:
                 pass
-            await process.wait()
+            # Windows에서는 가득 찬 stdout 파이프가 wait() 완료를 막을 수 있다.
+            # 종료된 자식의 남은 출력을 버리면서 파이프를 닫고 정리 시간도 제한한다.
+            try:
+                await asyncio.wait_for(process.communicate(), timeout=2)
+            except TimeoutError:
+                process._transport.close()
+                raise
 
 
 def run(command: str, args: list[str], cwd: str, *, timeout_s: float = TIMEOUT_S) -> dict[str, Any]:
