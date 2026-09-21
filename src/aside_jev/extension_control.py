@@ -16,7 +16,7 @@ import uuid
 from .core import validate_confidence
 from .jev import resolve_timeout
 from .native_platform import ControlError
-from . import native_platform, native_registry
+from . import native_platform, native_registry, keychain
 
 HOST_NAME = "com.aside_jev.control"
 BEGIN = "<!-- BEGIN aside-jev extension-control -->"
@@ -212,6 +212,12 @@ def _load_config(root: Path) -> dict[str, Any]:
                 raise ValueError()
         if result.get("env_file") is not None and (not isinstance(result["env_file"], str) or not Path(result["env_file"]).is_absolute()):
             raise ValueError()
+        storage = result.get("credential_store", "env_file")
+        if storage not in ("env_file", "keychain"):
+            raise ValueError()
+        if storage == "keychain" and (result.get("env_file") is not None or
+                result.get("keychain_account") != keychain.account_id(root, Path(result["profile_dir"]))):
+            raise ValueError()
         validate_confidence(result["min_confidence"], name="min_confidence")
         resolve_timeout(result["timeout_s"])
         if result["model"] != "jev-latest" or not isinstance(result.get("profile_label"), str):
@@ -231,8 +237,12 @@ def validate_origin(origin: str) -> None:
             raise ControlError("origin", "등록한 Aside Jev 확장 프로그램만 이 연결을 사용할 수 있습니다.")
 
 
-def _key_values(config: dict[str, Any]) -> dict[str, str]:
-    values = {name: value.strip() for name in KEY_NAMES if (value := os.environ.get(name, "")).strip()}
+def _key_values(config: dict[str, Any], *, include_environment: bool = True) -> dict[str, str]:
+    if config.get("credential_store") == "keychain":
+        value = keychain.get_store().get(config["keychain_account"])
+        return {KEY_NAMES[0]: value} if value else {}
+    values = ({name: value.strip() for name in KEY_NAMES if (value := os.environ.get(name, "")).strip()}
+              if include_environment else {})
     if values:
         return values
     if not config.get("env_file"):
@@ -264,7 +274,12 @@ def load_key_environment() -> bool:
     """허용된 키만 읽으며 source, 변수 확장, 셸 실행을 하지 않는다."""
     root = config_root()
     with _lock(root):
-        values = _key_values(_load_config(root))
+        config = _load_config(root)
+        if config.get("credential_store") == "keychain":
+            # Do not reuse a stale process key after rotation, deletion or denial.
+            for name in KEY_NAMES:
+                os.environ.pop(name, None)
+        values = _key_values(config)
         for name, value in values.items():
             os.environ[name] = value
         return bool(values)
@@ -360,10 +375,11 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
     _, block_count, legacy_count = _strip_blocks(agents)
     applied = agents.count(_rules(config)) == 1 and block_count == 1 and legacy_count == 0 and skill == _skill(config)
     try:
-        ready = bool(_key_values(config))
+        ready = (keychain.get_store().contains(config["keychain_account"])
+                 if config.get("credential_store") == "keychain" else bool(_key_values(config)))
         key_status = "configured" if ready else "missing"
     except ControlError:
-        ready, key_status = False, "file_error"
+        ready, key_status = False, ("keychain_error" if config.get("credential_store") == "keychain" else "file_error")
     legacy_global, warnings = _legacy_warnings(config)
     entry = _mcp_entry(config)
     try:
@@ -378,6 +394,7 @@ def _status(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         "instructions_applied": applied,
         "live_available": ready,
         "key_status": key_status,
+        "credential_store": config.get("credential_store", "env_file"),
         "model": config["model"],
         "min_confidence": config["min_confidence"],
         "timeout_s": config["timeout_s"],
@@ -468,7 +485,7 @@ def _transaction(root: Path, updates: list[tuple[Path, bytes, int]], *, after_wr
                     _atomic_write(path, original, mode=previous_mode)
         except Exception:
             raise ControlError("rollback_failed", "변경을 전부 되돌리지 못했습니다. 확장을 사용하지 말고 설정 폴더의 backups 기록을 확인해 주세요.") from None
-        if isinstance(error, ControlError) and error.code in ("registry_write", "registry_access", "rollback_failed"):
+        if isinstance(error, ControlError) and (error.code in ("registry_write", "registry_access", "rollback_failed") or error.code.startswith("keychain_")):
             raise error
         raise ControlError("write_failed", "설정을 저장하지 못해 변경을 되돌렸습니다. 파일 권한을 확인해 주세요.") from None
 
@@ -531,12 +548,24 @@ def setup_installation(
     windows_registry_key: str | None = None,
     extra_updates: list[tuple[Path, bytes, int]] | None = None,
     expected_files: dict[Path, bytes | None] | None = None,
+    credential_store: str = "env_file", keychain_secret: str | None = None,
 ) -> dict[str, Any]:
     """미리보기가 기본이며 apply=True를 명시한 설치에서만 연결 파일을 만든다."""
     if not re.fullmatch(r"[a-p]{32}", extension_id):
         raise ControlError("input", "확장 ID는 a~p 소문자 32자리여야 합니다.")
     target_root = _absolute(root) if root is not None else config_root()
     profile, hosts = _absolute(profile_dir), _absolute(native_host_dir)
+    if credential_store not in ("env_file", "keychain"):
+        raise ControlError("input", "Unsupported credential store.")
+    secure = credential_store == "keychain"
+    if secure and sys.platform != "darwin":
+        raise ControlError("keychain_platform", "macOS Keychain is only available on macOS.")
+    if keychain_secret is not None:
+        if not secure:
+            raise ControlError("input", "A Keychain secret requires Keychain storage.")
+        keychain.validate_secret(keychain_secret)
+    if secure and env_file is not None:
+        raise ControlError("input", "Import env files through setup; Keychain config must not reference plaintext keys.")
     environment_file = _absolute(env_file) if env_file is not None else None
     for path in (target_root, profile, hosts):
         _check_path(path)
@@ -563,6 +592,8 @@ def setup_installation(
         "added_separator": False,
         "platform": platform, "windows_registry_key": windows_registry_key,
     }
+    if secure:
+        config.update(credential_store="keychain", keychain_account=keychain.account_id(target_root, profile))
     manifest = {"name": HOST_NAME, "description": "Aside Jev profile instruction control", "path": str(native_wrapper), "type": "stdio", "allowed_origins": [f"chrome-extension://{extension_id}/"]}
     registered = _text(manifest_path, limit=65536)
     if registered is not None:
@@ -607,7 +638,7 @@ def setup_installation(
         "files": [str(path) for path in all_paths],
         "aside_mcp_entry": _mcp_entry(config),
         "native_host": manifest, "enforcement": "instructions_only", "scope": "new_aside_tasks",
-        "platform": platform,
+        "platform": platform, "credential_store": credential_store,
         "registry_registration": {"hive": "HKCU", "key": windows_registry_key, "view": "32", "manifest": str(manifest_path)} if windows else None,
         "starts_background_service": False, "mcp_registration": "manual",
         "disable": "확장 팝업에서 OFF로 전환하면 선택한 프로필의 관리 지침만 제거됩니다. 등록 파일은 설치 미리보기의 files 목록에서 확인할 수 있습니다.",
@@ -619,18 +650,31 @@ def setup_installation(
             if _read(path) != expected:
                 raise ControlError("file_changed", "설치 미리보기 이후 파일이 변경되어 중단했습니다. 새 미리보기를 확인해 주세요.")
         existing = _text(target_root / "config.json", limit=65536)
+        legacy = None
         if existing is not None:
             previous = _load_config(target_root)
-            identity = ("extension_id", "profile_dir", "env_file", "windows_registry_key")
-            if any(previous.get(name) != config[name] for name in identity):
+            identity = ("extension_id", "profile_dir", "windows_registry_key")
+            if (any(previous.get(name) != config[name] for name in identity)
+                    or (not secure and (previous.get("env_file") != config["env_file"]
+                                        or previous.get("credential_store") == "keychain"))):
                 raise ControlError("installation_conflict", "기존 연결이 다른 대상에 설치되어 있습니다. 기존 연결을 해제한 뒤 별도 설정 폴더를 사용해 주세요.")
             config = {**config, **{name: previous[name] for name in ("enabled", "min_confidence", "timeout_s", "added_separator")}}
+            if secure:
+                from .credentials import legacy_snapshot
+                legacy = legacy_snapshot(target_root, previous)
         elif any(_read(path) is not None for path, _, _ in scripts):
             raise ControlError("installation_conflict", "설치 폴더에 소유권을 확인할 수 없는 실행 파일이 있습니다. 별도 설정 폴더를 사용해 주세요.")
+        after_write = registration.apply if registration is not None else None
+        if secure and keychain_secret is not None:
+            after_write = lambda: keychain.replace_verified(config["keychain_account"], keychain_secret)
         _transaction(target_root, [
             (target_root / "config.json", _json_bytes(config), 0o600),
             *scripts,
             (manifest_path, _json_bytes(manifest), 0o600),
             *extras,
-        ], after_write=registration.apply if registration is not None else None)
+        ], after_write=after_write)
+        if legacy is not None and keychain_secret is not None:
+            from .credentials import cleanup_legacy
+            cleanup_legacy(legacy)
+            plan["legacy_key_file_removed"] = True
     return plan

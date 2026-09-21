@@ -139,7 +139,7 @@ The local demo uses `http://127.0.0.1:8766`. Add `--port 0` for an available por
 
 </details>
 
-Live decisions require `TYPESAFE_API_KEY` or `TYPESAFEAI_API_KEY`. Setup accepts hidden terminal input or `--env-file`; keys stay in a local, unencrypted account-accessible file and never enter the popup. Key presence is not authentication proof.
+**On macOS, setup stores the API key in macOS Keychain**, not in a plaintext file. Hidden terminal input and `--env-file` imports are supported; Windows retains its local environment-file storage. Keys never enter the popup. Key presence is not authentication proof. See [Keychain migration, rotation, and deletion](docs/KEYCHAIN.md).
 
 <details>
 <summary><strong>Use MCP without the popup</strong></summary>

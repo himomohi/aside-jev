@@ -14,6 +14,7 @@ import sys
 from typing import Any
 
 from . import extension_control as control
+from . import credentials, keychain
 
 MESSAGES = {
     "en": {
@@ -27,6 +28,8 @@ MESSAGES = {
         "registry_help": "The Windows host key depends on the browser build. Supply the verified key; this installer never registers other browsers as a fallback.",
         "key": "Jev API key (hidden; Enter to configure later): ",
         "key_help": "The key is stored in a local, unencrypted file accessible to your account. It is never sent to the popup or printed.",
+        "keychain_help": "macOS stores the key in your Keychain, not api.env. Access failures stop setup; there is no plaintext fallback. Existing backups and externally supplied env files are not deleted.",
+        "keychain_label": "Credential storage",
         "review": "Ready to connect",
         "account": "Account",
         "extension": "Extension folder",
@@ -57,6 +60,8 @@ MESSAGES = {
         "registry_help": "Windows 등록 키는 브라우저 빌드에 따라 다릅니다. 확인된 키를 지정하세요. 다른 브라우저를 대신 등록하지 않습니다.",
         "key": "Jev API 키(입력 숨김, 나중에 설정하려면 Enter): ",
         "key_help": "키는 이 계정에서 접근할 수 있는 암호화되지 않은 로컬 파일에 저장됩니다. 팝업으로 보내거나 출력하지 않습니다.",
+        "keychain_help": "macOS에서는 api.env 대신 키체인에 저장합니다. 접근 실패 시 평문 저장으로 우회하지 않습니다. 기존 백업과 외부에서 지정한 환경 파일은 삭제하지 않습니다.",
+        "keychain_label": "키 저장소",
         "review": "연결 준비 완료",
         "account": "계정",
         "extension": "확장 폴더",
@@ -166,7 +171,8 @@ def setup(args: Any) -> int:
     root = control._absolute(args.config_dir) if args.config_dir else control.config_root()
     control._check_path(root)
     previous = None
-    if control._read(root / "config.json") is not None:
+    previous_bytes = control._read(root / "config.json")
+    if previous_bytes is not None:
         previous = control._load_config(root)
     profiles = discover_profiles()
     if args.profile_dir:
@@ -216,19 +222,34 @@ def setup(args: Any) -> int:
     environment = str(control._absolute(args.env_file or (previous or {}).get("env_file") or root / "api.env"))
     if args.env_file and not Path(environment).is_file():
         raise control.ControlError("key_file", t["invalid"])
-    values = control._key_values({"env_file": environment if Path(environment).is_file() else None})
-    have_key = bool(values)
-    # 터미널 환경변수만 있으면 다음 브라우저 실행에 전달되지 않으므로 확인 후 파일로 보존한다.
-    secret = next(iter(values.values()), "") if not Path(environment).exists() and not args.env_file else ""
-    if secret and not args.dry_run:
-        print(t["key_help"])
+    secure = sys.platform == "darwin"
+    source = Path(environment) if Path(environment).is_file() else None
+    source_bytes = control._read(source, limit=65536) if source is not None else None
+    previous_secure = (previous or {}).get("credential_store") == "keychain"
+    if secure and previous_secure and not args.env_file:
+        # Do not replace a saved key with a stale shell environment on reinstall.
+        have_key = keychain.get_store().contains(previous["keychain_account"])
+        secret = ""
+        source = None
+    else:
+        values = control._key_values({"env_file": str(source) if source else None},
+                                     include_environment=not (secure and source is not None))
+        have_key = bool(values)
+        secret = (credentials.single_key(values) or "") if secure else (
+            next(iter(values.values()), "") if not Path(environment).exists() and not args.env_file else "")
+    help_key = "keychain_help" if secure else "key_help"
+    if secure or (secret and not args.dry_run):
+        print(t[help_key])
     if not have_key and not args.dry_run and interactive and not args.yes and not args.env_file:
-        print(t["key_help"])
+        if not secure:
+            print(t[help_key])
         secret = getpass.getpass(t["key"]).strip()
     if secret and (not secret.isascii() or re.search(r"[\s'\"`$#;\\]", secret)):
         raise control.ControlError("key_format", "Invalid API key format.")
     kwargs = dict(extension_id=identity, profile_dir=profile, native_host_dir=hosts,
-                  env_file=environment, root=root, windows_registry_key=registry)
+                  env_file=None if secure else environment, root=root, windows_registry_key=registry)
+    if secure:
+        kwargs.update(credential_store="keychain", keychain_secret=secret or None)
     plan = control.setup_installation(**kwargs)
     settings_path = profile / "settings.json"
     original = control._read(settings_path)
@@ -243,15 +264,18 @@ def setup(args: Any) -> int:
         raise control.ControlError("assets_conflict", t["assets_conflict"])
     updates = [(extension / name, value, 0o600) for name, value in assets.items()]
     updates += [(marker, b"aside-jev installer v1\n", 0o600), (settings_path, updated, 0o600)]
-    if secret:
+    if secret and not secure:
         updates.append((Path(environment), ("TYPESAFE_API_KEY=" + secret + "\n").encode(), 0o600))
-    elif not Path(environment).exists():
+    elif not secure and not Path(environment).exists():
         updates.append((Path(environment), b"# Add TYPESAFE_API_KEY here, or rerun setup.\n", 0o600))
     expected = {path: control._read(path) for path, _, _ in updates}
     expected[settings_path] = original
+    expected[root / "config.json"] = previous_bytes
+    if secure and source is not None:
+        expected[source] = source_bytes
     kwargs.update(extra_updates=updates, expected_files=expected)
     print("\n" + t["review"])
-    for label, value in [(t["account"], profile), (t["extension"], extension), (t["mcp"], settings_path), (t["key_file"], environment)]:
+    for label, value in [(t["account"], profile), (t["extension"], extension), (t["mcp"], settings_path), (t["keychain_label"] if secure else t["key_file"], "macOS Keychain" if secure else environment)]:
         print(f"  {label}: {value}")
     for path in plan["files"]:
         print(f"  + {path}")

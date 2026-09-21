@@ -159,6 +159,13 @@ def main(argv: list[str] | None = None) -> None:
     mode.add_argument("--yes", action="store_true", help=t("yes"))
     p_setup.set_defaults(func=cmd_setup)
 
+    from .credentials import command as keychain_command
+    p_keychain = sub.add_parser("keychain", help="macOS 키체인 관리" if locale == "ko" else "Manage macOS Keychain credentials")
+    p_keychain.add_argument("action", choices=["status", "set", "migrate", "delete"])
+    p_keychain.add_argument("--config-dir", help=t("config_dir"))
+    p_keychain.add_argument("--yes", action="store_true", help=t("yes"))
+    p_keychain.set_defaults(func=keychain_command)
+
     p_dashboard = sub.add_parser("dashboard", help=t("dashboard"))
     p_dashboard.add_argument("--port", type=int, default=8766, help=t("port"))
     p_dashboard.add_argument("--open", action="store_true", help=t("open"))

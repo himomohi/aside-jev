@@ -121,7 +121,7 @@ flowchart LR
 
 > Windows Native Messaging은 해당 Aside 빌드의 등록 키가 필요합니다. 기존 Aside `NativeMessagingHosts` 경로를 찾으면 제안하고, 없으면 확인된 키를 입력받습니다. Windows 실기기의 최종 브라우저 연결은 아직 검증하지 않았습니다. [Windows 상세 안내 →](docs/EXTENSION.ko.md#windows)
 
-macOS에서 다운로드한 `.command`가 열리지 않으면 압축을 푼 폴더에서 `bash scripts/install.sh`를 실행하세요. OS 보안 검사를 해제할 필요는 없습니다. 설치 문구는 영어가 기본이며 `.\Install.cmd --lang ko` 또는 `bash scripts/install.sh --lang ko`로 한국어를 선택합니다.
+macOS에서 다운로드한 `.command`가 열리지 않으면 압축을 푼 폴더에서 `bash scripts/install.sh`를 실행하세요. OS 보안 검사를 해제할 필요가 없습니다. 설치 문구는 영어가 기본이며 `.\Install.cmd --lang ko` 또는 `bash scripts/install.sh --lang ko`로 한국어를 선택합니다.
 
 [**설치 상세·업데이트·제거 →**](docs/EXTENSION.ko.md)
 
@@ -138,7 +138,7 @@ uv run aside-jev dashboard --open
 
 </details>
 
-Live 판단에는 `TYPESAFE_API_KEY` 또는 `TYPESAFEAI_API_KEY`가 필요합니다. 설치기의 숨김 입력이나 `--env-file`을 사용합니다. 키는 계정에서 접근할 수 있는 암호화되지 않은 로컬 파일에만 저장되며 팝업으로 전달하지 않습니다. 키 존재 확인은 실제 인증 성공을 뜻하지 않습니다.
+**macOS 설치기는 API 키를 평문 파일 대신 macOS 키체인에 저장합니다.** 숨김 입력과 `--env-file` 가져오기를 지원하며 Windows는 기존 환경 파일 방식을 유지합니다. 키는 팝업으로 전달하지 않고, 키 존재 확인은 실제 인증 성공을 뜻하지 않습니다. [키체인 이전·교체·삭제 안내](docs/KEYCHAIN.ko.md)를 참고하세요.
 
 <details>
 <summary><strong>MCP만 연결해서 사용하기</strong></summary>

@@ -12,7 +12,7 @@ from aside_jev import installer
 
 
 @pytest.fixture
-def installation(tmp_path, monkeypatch):
+def installation(tmp_path, monkeypatch, keychain_store):
     if sys.platform not in ('darwin', 'win32'):
         monkeypatch.setattr(installer.sys, 'platform', 'darwin')
     if sys.platform == 'win32':
