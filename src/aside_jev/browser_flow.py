@@ -3,49 +3,19 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
-from dataclasses import dataclass
 import hashlib
-import json
 import re
 from time import monotonic
 from typing import Any, Callable
 
 from .aside_bridge import sanitize_context
+from .browser_policy import ActionRule as ActionRule, validate_completion
 from .browser_runtime import AsideRuntime, BrowserRuntimeError, Observation, REF
 from .core import parse_candidates, validate_confidence
 from .jev import JevProviderError, choose_live, prepare_decision_context, resolve_timeout
 
 ELEMENT = re.compile(r'^\s*-\s+(?P<role>link|button|textbox|searchbox|checkbox|radio|tab|combobox)\s+"(?P<name>(?:\\.|[^"\\])*)".*?\[ref=(?P<ref>(?:f\d+)?e\d+)\]')
 MAX_ACTIONS = 24
-
-
-@dataclass(frozen=True)
-class ActionRule:
-    role: str
-    name: str
-    action: str
-    value: str | None = None
-
-    @classmethod
-    def parse(cls, data: dict[str, Any]) -> "ActionRule":
-        if not isinstance(data, dict) or set(data) - {"role", "name", "action", "value"}:
-            raise ValueError("action_rules require role, exact name, action and optional value")
-        try:
-            rule = cls(**data)
-        except TypeError:
-            raise ValueError("action_rules require role, name and action") from None
-        if rule.role not in ("link", "button", "textbox", "searchbox", "checkbox", "radio", "tab", "combobox"):
-            raise ValueError("Unsupported action role")
-        if not isinstance(rule.name, str) or not 1 <= len(rule.name) <= 300:
-            raise ValueError("Each action rule needs an exact accessible name of 1..300 characters")
-        if rule.action not in ("click", "focus", "fill"):
-            raise ValueError("action must be click, focus, or fill")
-        if rule.action == "fill":
-            if rule.role not in ("textbox", "searchbox") or not isinstance(rule.value, str) or len(rule.value) > 1000:
-                raise ValueError("fill requires a textbox/searchbox and an explicit value of up to 1000 characters")
-        elif rule.value is not None:
-            raise ValueError("Only fill actions accept a value")
-        return rule
 
 
 def action_table(observation: Observation, rules: list[ActionRule]) -> list[dict[str, Any]]:
@@ -121,10 +91,7 @@ async def run_browser_flow(
     rules = [ActionRule.parse(item) for item in action_rules]
     if len(set(rules)) != len(rules):
         raise ValueError("Duplicate action rules are not allowed")
-    if not isinstance(completion_text, str) or not 3 <= len(completion_text) <= 300:
-        raise ValueError("completion_text must be an explicit visible success signal of 3..300 characters")
-    if completion_url is not None and (not isinstance(completion_url, str) or not re.match(r"https?://", completion_url) or len(completion_url) > 2000):
-        raise ValueError("completion_url must be an exact HTTP(S) URL")
+    validate_completion(completion_text, completion_url)
     if isinstance(max_steps, bool) or not isinstance(max_steps, int) or not 1 <= max_steps <= 30:
         raise ValueError("max_steps must be 1..30")
     timeout_s = resolve_timeout(timeout_s)

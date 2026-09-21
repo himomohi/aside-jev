@@ -81,6 +81,8 @@ def parse_candidates(raw: list[dict[str, Any]], *, include_abstain: bool = True)
         if not isinstance(item, dict):
             raise ValueError("each candidate must be an object")
         candidate_id = item.get("id")
+        if not isinstance(candidate_id, str):
+            raise ValueError("candidate id must be a non-empty string of at most 128 characters")
         out.append(Candidate(
             id=candidate_id,
             description=item.get("description") or candidate_id,
@@ -92,6 +94,8 @@ def parse_candidates(raw: list[dict[str, Any]], *, include_abstain: bool = True)
         if len(out) == MAX_CANDIDATES:
             raise ValueError(f"reserve one of {MAX_CANDIDATES} candidates for abstain")
         out.append(build_abstain())
+        # The implicit abstain row consumes the same context budget as user rows.
+        validate_candidates(out)
     return out
 
 
