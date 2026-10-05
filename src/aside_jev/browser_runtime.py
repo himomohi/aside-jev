@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from functools import cached_property
 import json
 import re
 from typing import Any, AsyncIterator
@@ -11,6 +12,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from .aside_bridge import resolve_aside_bin
+from .native_core import normalize_refs
 
 REF = re.compile(r"\[ref=(?:f\d+)?e\d+\]")
 MAX_SNAPSHOT_CHARS = 500_000
@@ -21,9 +23,9 @@ class Observation:
     url: str
     tree: str
 
-    @property
+    @cached_property
     def identity(self) -> str:
-        return self.url + "\n" + REF.sub("[ref]", self.tree)
+        return self.url + "\n" + normalize_refs(self.tree)
 
 
 class BrowserRuntimeError(RuntimeError):
@@ -33,6 +35,7 @@ class BrowserRuntimeError(RuntimeError):
 class AsideRuntime:
     def __init__(self, session: ClientSession):
         self.session = session
+        self._last_observation: Observation | None = None
 
     async def _call(self, code: str) -> dict[str, Any]:
         response = await self.session.call_tool("repl", {"code": code, "title": "Jev 브라우저 단계"})
@@ -59,25 +62,34 @@ class AsideRuntime:
         return Observation(value["url"], value["tree"])
 
     async def attach(self, target_id: str) -> Observation:
+        self._last_observation = None
         value = await self._call(
             "var __asideJevPage = await attachBrowserTab(" + json.dumps(target_id) + ");"
+            "var __asideJevSnapshot = await snapshot(__asideJevPage);"
+            "var __asideJevIdentity = __asideJevPage.url()+'\\n'+"
+            "__asideJevSnapshot.tree.replace(/\\[ref=(?:f\\d+)?e\\d+\\]/g,'[ref]');"
             "console.log(JSON.stringify({marker:'aside-jev-runtime-v1',url:__asideJevPage.url(),"
-            "tree:(await snapshot(__asideJevPage)).tree}));"
+            "tree:__asideJevSnapshot.tree}));"
         )
-        return self._observation(value)
+        self._last_observation = self._observation(value)
+        return self._last_observation
 
     async def execute(self, action: dict[str, Any], expected: Observation, *, timeout_ms: int) -> Observation | None:
         # 실행할 코드는 아래 세 종류로 한정한다. 모델 출력은 코드로 평가하지 않는다.
         operation = action["action"]
         if operation not in ("click", "focus", "fill"):
             raise ValueError("Unsupported browser action")
+        if expected != self._last_observation:
+            return None
+        # A cancelled or malformed response must invalidate the local cache.
+        self._last_observation = None
         argument = json.dumps(action.get("value", ""), ensure_ascii=False) + "," if operation == "fill" else ""
         expression = f"await __asideJevPage.locator(ref).{operation}({argument}{{timeout:{timeout_ms}}});"
         value = await self._call(
             "console.log(JSON.stringify(await (async()=>{"
             "const before=await snapshot(__asideJevPage);"
             "const normalized=__asideJevPage.url()+'\\n'+before.tree.replace(/\\[ref=(?:f\\d+)?e\\d+\\]/g,'[ref]');"
-            f"if(normalized!=={json.dumps(expected.identity, ensure_ascii=False)})"
+            "if(normalized!==__asideJevIdentity)"
             "return {marker:'aside-jev-runtime-v1',stale:true};"
             "const lines=before.tree.split('\\n').filter(line=>line.replace(/\\[ref=(?:f\\d+)?e\\d+\\]/g,'[ref]')==="
             + json.dumps(action["line"], ensure_ascii=False) + ");"
@@ -85,10 +97,16 @@ class AsideRuntime:
             "const ref=lines[0].match(/\\[ref=((?:f\\d+)?e\\d+)\\]/)?.[1];"
             "if(!ref) return {marker:'aside-jev-runtime-v1',stale:true};"
             + expression +
-            "return {marker:'aside-jev-runtime-v1',url:__asideJevPage.url(),tree:(await snapshot(__asideJevPage)).tree};"
+            "const after=await snapshot(__asideJevPage);"
+            "__asideJevIdentity=__asideJevPage.url()+'\\n'+after.tree.replace(/\\[ref=(?:f\\d+)?e\\d+\\]/g,'[ref]');"
+            "return {marker:'aside-jev-runtime-v1',url:__asideJevPage.url(),tree:after.tree};"
             "})()));"
         )
-        return None if value.get("stale") else self._observation(value)
+        if value.get("stale"):
+            self._last_observation = None
+            return None
+        self._last_observation = self._observation(value)
+        return self._last_observation
 
 
 @asynccontextmanager

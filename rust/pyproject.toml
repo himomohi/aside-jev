@@ -1,0 +1,15 @@
+[project]
+name = "aside-jev-native"
+version = "0.2.0"
+requires-python = ">=3.11"
+description = "Rust observation and pooled HTTP core for Aside Jev"
+license = "MIT"
+
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "_aside_jev_native"
+

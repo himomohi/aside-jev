@@ -203,6 +203,12 @@ Find the `targetId` of an already-open Aside tab and pass it to `jev_browser_run
 
 ## Reuse connections. Reduce overhead.
 
+An optional [Rust performance core](docs/RUST_CORE.md) handles UI observation
+preprocessing and the pooled Jev System One HTTP transport. Build from source with
+`uv sync --extra native` (requires Cargo), then start with `ASIDE_JEV_ENGINE=rust`.
+Execution checks retain the full snapshot inside the REPL instead of resending it
+on each action. See the guide for scope, timeout semantics, and local benchmarks.
+
 Reuse the SDK client and HTTP connection, and process MCP decision requests outside the event loop. Automatic retries are disabled; requests and tasks have explicit limits.
 
 **Local SDK transport benchmark · 30 requests per method · 2026-09-20**

@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+- Add an optional Rust core for UI observation ranking, reference normalization, and pooled Jev System One HTTP transport; preserve Python interfaces and SDK validation.
+- Retain full snapshot identities in the task REPL instead of resending the tree on every action, while preserving fresh-page and unique-target checks.
+- Add Python/Rust parity and localhost transport tests, cross-platform native CI, and reproducible local benchmarks. See [Rust migration scope](docs/RUST_CORE.md).
+
 ## 0.2.0 — 2026-09-21
 
 - Compact icon popover with state animation, accessible controls, and on-demand diagnostics.
