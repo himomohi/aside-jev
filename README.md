@@ -34,6 +34,8 @@
 > **Current release: 0.2.0**<br />
 > ON applies to **new task instructions and the extension-specific MCP** for the selected Aside account. `jev_browser_run` delegates action selection to Jev. The extension does not intercept all built-in Aside tools.
 
+Proposed architecture: [context-preserving Jev workflow evaluation](docs/rfcs/0001-composable-jev-decisions.md), grounded in [GitHub usage cases](docs/research/jev-github-cases.md). This is a design request; current runtime behavior is unchanged.
+
 ## What’s new in 0.2.0
 
 - Icon-based popover with an animated connection control, on-demand diagnostics/settings, accessible labels, and reduced-motion support.

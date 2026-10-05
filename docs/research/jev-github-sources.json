@@ -1,0 +1,174 @@
+[
+  {
+    "id": "official-skills",
+    "repository": "typesafe-ai/skills",
+    "commit": "65a39f393687675ce170e6094757de20370365b9",
+    "evidence_type": "official guidance",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "skills/typesafe-ai/SKILL.md",
+        "start_line": 95,
+        "end_line": 148,
+        "url": "https://github.com/typesafe-ai/skills/blob/65a39f393687675ce170e6094757de20370365b9/skills/typesafe-ai/SKILL.md#L95-L148"
+      }
+    ]
+  },
+  {
+    "id": "official-sdk",
+    "repository": "typesafe-ai/typesafe-sdk-python",
+    "commit": "f078f1e208a0d885154dc758344ae4fce77ac168",
+    "evidence_type": "official SDK example",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "README.md",
+        "start_line": 17,
+        "end_line": 33,
+        "url": "https://github.com/typesafe-ai/typesafe-sdk-python/blob/f078f1e208a0d885154dc758344ae4fce77ac168/README.md#L17-L33"
+      }
+    ]
+  },
+  {
+    "id": "official-workflowevals",
+    "repository": "typesafe-ai/WorkflowEvals",
+    "commit": "0ac3b8ad845429f0d8e064ecfb2430a47c5a25cb",
+    "evidence_type": "official evaluation implementation",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "evals/invoice_processing/structured/semantic.py",
+        "start_line": 46,
+        "end_line": 75,
+        "url": "https://github.com/typesafe-ai/WorkflowEvals/blob/0ac3b8ad845429f0d8e064ecfb2430a47c5a25cb/evals/invoice_processing/structured/semantic.py#L46-L75"
+      },
+      {
+        "path": "evals/invoice_processing/structured/decompose.py",
+        "start_line": 155,
+        "end_line": 205,
+        "url": "https://github.com/typesafe-ai/WorkflowEvals/blob/0ac3b8ad845429f0d8e064ecfb2430a47c5a25cb/evals/invoice_processing/structured/decompose.py#L155-L205"
+      },
+      {
+        "path": "evals/invoice_processing/structured/flow.py",
+        "start_line": 81,
+        "end_line": 155,
+        "url": "https://github.com/typesafe-ai/WorkflowEvals/blob/0ac3b8ad845429f0d8e064ecfb2430a47c5a25cb/evals/invoice_processing/structured/flow.py#L81-L155"
+      }
+    ]
+  },
+  {
+    "id": "official-n8n",
+    "repository": "typesafe-ai/n8n-nodes-typesafe-ai",
+    "commit": "c12537bbd9ed7159b7bbe23678ca128c7b2fb52b",
+    "evidence_type": "official workflow integration",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "nodes/TypeSafeAi/TypeSafeAi.node.ts",
+        "start_line": 98,
+        "end_line": 150,
+        "url": "https://github.com/typesafe-ai/n8n-nodes-typesafe-ai/blob/c12537bbd9ed7159b7bbe23678ca128c7b2fb52b/nodes/TypeSafeAi/TypeSafeAi.node.ts#L98-L150"
+      },
+      {
+        "path": "nodes/TypeSafeAi/TypeSafeAi.node.ts",
+        "start_line": 258,
+        "end_line": 302,
+        "url": "https://github.com/typesafe-ai/n8n-nodes-typesafe-ai/blob/c12537bbd9ed7159b7bbe23678ca128c7b2fb52b/nodes/TypeSafeAi/TypeSafeAi.node.ts#L258-L302"
+      }
+    ]
+  },
+  {
+    "id": "community-browser",
+    "repository": "jkudish/jev-browser",
+    "commit": "1f0726cc8bc4483b96439504b594a01596d8e347",
+    "evidence_type": "community browser implementation",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "src/questions.ts",
+        "start_line": 6,
+        "end_line": 27,
+        "url": "https://github.com/jkudish/jev-browser/blob/1f0726cc8bc4483b96439504b594a01596d8e347/src/questions.ts#L6-L27"
+      },
+      {
+        "path": "src/navigate.ts",
+        "start_line": 799,
+        "end_line": 859,
+        "url": "https://github.com/jkudish/jev-browser/blob/1f0726cc8bc4483b96439504b594a01596d8e347/src/navigate.ts#L799-L859"
+      }
+    ]
+  },
+  {
+    "id": "community-skill-picker",
+    "repository": "safzanpirani/pi-jev-skill-picker",
+    "commit": "5a8b300e1adb9b72f53e7cb5952ec8f7e90c758d",
+    "evidence_type": "community skill selection implementation",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "extensions/jev.ts",
+        "start_line": 165,
+        "end_line": 231,
+        "url": "https://github.com/safzanpirani/pi-jev-skill-picker/blob/5a8b300e1adb9b72f53e7cb5952ec8f7e90c758d/extensions/jev.ts#L165-L231"
+      }
+    ]
+  },
+  {
+    "id": "community-supervisor",
+    "repository": "thruwire/foreman",
+    "commit": "e5d1aa45183382390e388512dcbfebd747ec89ba",
+    "evidence_type": "community supervisory prototype",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "src/foreman/foreman/jev.py",
+        "start_line": 109,
+        "end_line": 151,
+        "url": "https://github.com/thruwire/foreman/blob/e5d1aa45183382390e388512dcbfebd747ec89ba/src/foreman/foreman/jev.py#L109-L151"
+      },
+      {
+        "path": "src/foreman/responsibilities/base.py",
+        "start_line": 66,
+        "end_line": 85,
+        "url": "https://github.com/thruwire/foreman/blob/e5d1aa45183382390e388512dcbfebd747ec89ba/src/foreman/responsibilities/base.py#L66-L85"
+      },
+      {
+        "path": "README.md",
+        "start_line": 477,
+        "end_line": 487,
+        "url": "https://github.com/thruwire/foreman/blob/e5d1aa45183382390e388512dcbfebd747ec89ba/README.md#L477-L487"
+      }
+    ]
+  },
+  {
+    "id": "community-graph",
+    "repository": "jexp/neo4jev",
+    "commit": "d157bbe496eb91813475156942bef1c6badfb342",
+    "evidence_type": "community graph traversal implementation",
+    "reviewed_on": "2026-10-05",
+    "executed_by_this_review": false,
+    "production_deployment_verified": false,
+    "files": [
+      {
+        "path": "src/neo4jev/navigator.py",
+        "start_line": 389,
+        "end_line": 435,
+        "url": "https://github.com/jexp/neo4jev/blob/d157bbe496eb91813475156942bef1c6badfb342/src/neo4jev/navigator.py#L389-L435"
+      }
+    ]
+  }
+]

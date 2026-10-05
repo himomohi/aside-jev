@@ -34,6 +34,8 @@
 > **현재 릴리즈: 0.2.0**<br />
 > ON은 선택한 Aside 계정의 **새 작업 지침과 확장 전용 MCP**에 적용됩니다. `jev_browser_run`의 행동 선택은 Jev를 거치며, Aside 내장 도구 전체를 강제로 가로채는 기능은 제공하지 않습니다.
 
+구조 변경 제안: [작업 맥락을 보존하는 Jev 워크플로 평가](docs/rfcs/0001-composable-jev-decisions.ko.md)와 [GitHub 사용 사례](docs/research/jev-github-cases.ko.md). 실행 동작 변경 전의 설계 요청입니다.
+
 ## 0.2.0 주요 변경사항
 
 - 아이콘 중심 팝오버, 연결 상태 애니메이션, 펼침 진단·설정, 접근성 이름과 동작 줄이기 지원.
