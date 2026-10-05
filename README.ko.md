@@ -202,6 +202,12 @@ Aside에서 이미 열린 탭의 `targetId`를 확인한 뒤 `jev_browser_run`�
 
 ## 연결을 재사용해 대기를 줄입니다
 
+선택형 [Rust 성능 코어](docs/RUST_CORE.ko.md)가 UI 관찰 전처리와 Jev System One의
+HTTP 연결 풀을 담당합니다. Cargo 설치 후 소스에서 `uv sync --extra native`로
+빌드하고 `ASIDE_JEV_ENGINE=rust`로 시작합니다. 실행 검증용 전체 스냅샷은 REPL에
+보관하여 매 행동마다 다시 전송하지 않습니다. 전환 범위·제한 시간·로컬 측정은
+가이드를 확인하세요.
+
 SDK 클라이언트와 HTTP 연결을 재사용하고, MCP 결정 요청은 이벤트 루프 밖에서 처리합니다. 자동 재시도는 제거하고 요청·작업별 한도를 둡니다.
 
 **로컬 SDK 전송 벤치마크 · 30회 · 2026-09-20**

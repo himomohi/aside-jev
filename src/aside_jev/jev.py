@@ -62,9 +62,11 @@ _request_slots = threading.BoundedSemaphore(MAX_IN_FLIGHT)
 
 def _new_client(key: str, base_url: str | None) -> Any:
     from typesafe_sdk import RetryPolicy, TypeSafeClient
+    from .native_core import http_transport
 
     # SDK 기본 재시도는 2회다. 모호하게 실패한 유료 요청의 재전송을 막는다.
-    return TypeSafeClient(api_key=key, base_url=base_url, timeout=DEFAULT_TIMEOUT_S, retry=RetryPolicy(max_retries=0))
+    return TypeSafeClient(api_key=key, base_url=base_url, timeout=DEFAULT_TIMEOUT_S,
+                          retry=RetryPolicy(max_retries=0), transport=http_transport())
 
 
 @contextmanager

@@ -16,6 +16,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+native = ["aside-jev-native==0.2.0"]
+
+[tool.uv.sources]
+aside-jev-native = { path = "rust" }
 
 [project.scripts]
 aside-jev = "aside_jev.cli:main"
@@ -54,6 +58,6 @@ venv = ".venv"
 include = [
   "/src", "/extension", "/scripts", "/tests", "/docs", "/Release",
   "/video/src", "/video/*.json", "/video/*.ts", "/video/*.mjs", "/video/README*",
-  "/README*", "/CHANGELOG*", "/Install*", "/LICENSE", "/pyproject.toml", "/uv.lock",
+  "/README*", "/CHANGELOG*", "/Install*", "/LICENSE", "/pyproject.toml", "/uv.lock", "/rust",
 ]
-exclude = ["**/__pycache__/**", "**/*.pyc", "**/node_modules/**", "**/.env*"]
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/node_modules/**", "**/.env*", "/rust/target"]

@@ -13,6 +13,7 @@ from .browser_policy import ActionRule as ActionRule, validate_completion
 from .browser_runtime import AsideRuntime, BrowserRuntimeError, Observation, REF
 from .core import parse_candidates, validate_confidence
 from .jev import JevProviderError, choose_live, prepare_decision_context, resolve_timeout
+from .native_core import native
 
 ELEMENT = re.compile(r'^\s*-\s+(?P<role>link|button|textbox|searchbox|checkbox|radio|tab|combobox)\s+"(?P<name>(?:\\.|[^"\\])*)".*?\[ref=(?P<ref>(?:f\d+)?e\d+)\]')
 MAX_ACTIONS = 24
@@ -46,26 +47,40 @@ def compact_observation(observation: Observation, *, goal: str, rules: list[Acti
     # 전체 관찰은 로컬 검증에 남기고 모델에는 목표/허용 대상과 관련된 줄부터 보낸다.
     terms = {term.casefold() for term in re.findall(r"[\w가-힣]{2,}", goal + " " + completion_text)}
     names = {rule.name.casefold() for rule in rules}
-    lines = observation.tree.splitlines()
-    ranked = sorted(enumerate(lines), key=lambda pair: (
-        -int(any(name in pair[1].casefold() for name in names)) * 100
-        -sum(term in pair[1].casefold() for term in terms), pair[0]))
+    if native is not None:
+        try:
+            selected_lines, total_lines = native.compact_lines(observation.tree, list(names), list(terms))
+        except UnicodeEncodeError:
+            # Preserve valid JSON containing isolated JS surrogates locally.
+            selected_lines, total_lines = _compact_lines_python(observation.tree, names, terms)
+    else:
+        selected_lines, total_lines = _compact_lines_python(observation.tree, names, terms)
+    safe = sanitize_context({"url": observation.url, "page_lines": selected_lines}, max_chars=6400)
+    if not isinstance(safe, dict):
+        safe = {"page_lines": []}
+    safe["total_lines"] = total_lines
+    safe["omitted_lines"] = total_lines - len(safe.get("page_lines", []))
+    return safe
+
+
+def _compact_lines_python(tree: str, names: set[str], terms: set[str]) -> tuple[list[str], int]:
+    """Reference implementation for compatibility and parity benchmarks."""
+    lines = tree.splitlines()
+    def rank(pair: tuple[int, str]) -> tuple[int, int]:
+        folded = pair[1].casefold()
+        return (-int(any(name in folded for name in names)) * 100
+                - sum(term in folded for term in terms), pair[0])
     selected: list[tuple[int, str]] = []
     budget = 4800
-    for index, line in ranked:
+    for index, line in sorted(enumerate(lines), key=rank):
+        if len(selected) >= 32:
+            break
         clean = REF.sub("[ref]", line)
-        if len(clean) > 800:
-            continue
-        if len(clean) + 1 > budget or len(selected) >= 32:
+        if len(clean) > 800 or len(clean) + 1 > budget:
             continue
         selected.append((index, clean))
         budget -= len(clean) + 1
-    safe = sanitize_context({"url": observation.url, "page_lines": [line for _, line in sorted(selected)]}, max_chars=6400)
-    if not isinstance(safe, dict):
-        safe = {"page_lines": []}
-    safe["total_lines"] = len(lines)
-    safe["omitted_lines"] = len(lines) - len(safe.get("page_lines", []))
-    return safe
+    return [line for _, line in sorted(selected)], len(lines)
 
 
 def _fingerprint(observation: Observation) -> str:
